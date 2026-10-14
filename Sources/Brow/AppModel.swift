@@ -22,12 +22,17 @@ final class AppModel {
     var media: MediaStatus = .unavailable
     var clipboard: ClipboardHistory
     var shelf: ShelfStore
+    var noteText: String {
+        didSet { notes.update(noteText) }
+    }
     @ObservationIgnored var mediaController: MediaController?
     @ObservationIgnored var clipboardWatcher: ClipboardWatcher?
     @ObservationIgnored private let clipboardStore = JSONFileStore<ClipboardHistory>(
         directory: JSONFileStore<ClipboardHistory>.defaultDirectory, name: "clipboard")
     @ObservationIgnored private let shelfStore = JSONFileStore<ShelfStore>(
         directory: JSONFileStore<ShelfStore>.defaultDirectory, name: "shelf")
+    @ObservationIgnored let notes = NotesStore(store: JSONFileStore<String>(
+        directory: JSONFileStore<String>.defaultDirectory, name: "notes"))
     @ObservationIgnored private let logger = Logger(subsystem: "com.freedrobili.Brow", category: "storage")
 
     @ObservationIgnored var onPanelExpandedChange: ((Bool) -> Void)?
@@ -39,6 +44,7 @@ final class AppModel {
     init() {
         clipboard = clipboardStore.load() ?? ClipboardHistory()
         shelf = shelfStore.load() ?? ShelfStore()
+        noteText = notes.text
         refreshShelf()
     }
 
@@ -59,6 +65,12 @@ final class AppModel {
 
     func select(_ tab: PanelTab) {
         panel?.select(tab)
+    }
+
+    /// Keeps the panel open while the note has focus; on losing it, re-checks the cursor.
+    func setEditingNote(_ editing: Bool) {
+        panel?.isEditingNote = editing
+        if !editing { mouseMoved(to: NSEvent.mouseLocation) }
     }
 
     func sendMedia(_ command: MediaCommand) {

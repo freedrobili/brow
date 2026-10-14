@@ -84,7 +84,7 @@ struct NotchRootView: View {
         switch model.panel?.selectedTab ?? .shelf {
         case .shelf: ShelfView(model: model)
         case .clipboard: ClipboardView(model: model)
-        case .notes: Color.clear
+        case .notes: NotesView(model: model)
         }
     }
 }

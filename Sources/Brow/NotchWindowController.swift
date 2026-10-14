@@ -22,6 +22,13 @@ final class NotchWindowController {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.reposition() }
         }
+        // Clicking another app takes key status away; dropping the first responder
+        // ends note editing so the panel can collapse.
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: panel, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { _ = self?.panel.makeFirstResponder(nil) }
+        }
         reposition()
     }
 
