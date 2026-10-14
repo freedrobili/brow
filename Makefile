@@ -4,7 +4,7 @@ APP := build/Brow.app
 INSTALLED := $(HOME)/Applications/Brow.app
 RELEASE := .build/release
 
-.PHONY: test helper app run install
+.PHONY: test helper app run install screenshots
 
 test:
 	swift test
@@ -37,3 +37,8 @@ install: app
 	cp -R $(APP) $(INSTALLED)
 	scripts/add-to-dock.sh $(INSTALLED)
 	open $(INSTALLED)
+
+# Redraws the README pictures in docs/screenshots from the real views with demo data.
+screenshots:
+	swift build -c release
+	$(RELEASE)/Brow --render-screenshots docs/screenshots
