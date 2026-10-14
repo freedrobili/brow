@@ -16,7 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowController = NotchWindowController(model: model)
         let tracker = MouseTracker(
             onMove: { [model] point in model.mouseMoved(to: point) },
-            onFileDrag: { [model] point in model.fileDragMoved(to: point) }
+            onFileDrag: { [model] point in model.fileDragMoved(to: point) },
+            onTextDrag: { [model] point in model.textDragMoved(to: point) }
         )
         tracker.start()
         mouseTracker = tracker

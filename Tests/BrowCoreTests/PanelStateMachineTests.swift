@@ -70,4 +70,16 @@ final class PanelStateMachineTests: XCTestCase {
         XCTAssertEqual(m.state, .collapsed)
         XCTAssertEqual(m.selectedTab, .shelf)
     }
+
+    func testTextDragOpensClipboard() {
+        m.textDragMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        XCTAssertEqual(m.state, .expanded)
+        XCTAssertEqual(m.selectedTab, .clipboard)
+    }
+
+    func testTextDragElsewhereKeepsCollapsed() {
+        m.textDragMoved(to: CGPoint(x: 100, y: 100), now: t0)
+        XCTAssertEqual(m.state, .collapsed)
+        XCTAssertEqual(m.selectedTab, .shelf)
+    }
 }

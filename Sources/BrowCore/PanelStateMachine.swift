@@ -42,10 +42,20 @@ public struct PanelStateMachine: Sendable {
         }
     }
 
+    /// A file drag over the notch opens the panel on the shelf.
     public mutating func fileDragMoved(to point: CGPoint, now: Date) {
+        dragMoved(to: point, now: now, opening: .shelf)
+    }
+
+    /// A text drag over the notch opens the panel on the clipboard history.
+    public mutating func textDragMoved(to point: CGPoint, now: Date) {
+        dragMoved(to: point, now: now, opening: .clipboard)
+    }
+
+    private mutating func dragMoved(to point: CGPoint, now: Date, opening tab: PanelTab) {
         mouseMoved(to: point, now: now)
         let target = state == .expanded ? geometry.panelRect : geometry.hoverRect
-        if target.contains(point) { selectedTab = .shelf }
+        if target.contains(point) { selectedTab = tab }
     }
 
     public mutating func tick(now: Date) {

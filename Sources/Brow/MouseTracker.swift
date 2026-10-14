@@ -1,17 +1,22 @@
 import AppKit
 
 /// Reports the cursor position from anywhere on screen. A drag counts as a file
-/// drag when the drag pasteboard changed since mouse-down and carries file URLs.
+/// (or text) drag when the drag pasteboard changed since mouse-down and carries
+/// file URLs (or plain text).
 @MainActor
 final class MouseTracker {
     private let onMove: (CGPoint) -> Void
     private let onFileDrag: (CGPoint) -> Void
+    private let onTextDrag: (CGPoint) -> Void
     private var monitors: [Any] = []
     private var dragChangeCountAtMouseDown = 0
 
-    init(onMove: @escaping (CGPoint) -> Void, onFileDrag: @escaping (CGPoint) -> Void) {
+    init(onMove: @escaping (CGPoint) -> Void,
+         onFileDrag: @escaping (CGPoint) -> Void,
+         onTextDrag: @escaping (CGPoint) -> Void) {
         self.onMove = onMove
         self.onFileDrag = onFileDrag
+        self.onTextDrag = onTextDrag
     }
 
     func start() {
@@ -41,9 +46,15 @@ final class MouseTracker {
         case .leftMouseDown:
             dragChangeCountAtMouseDown = drag.changeCount
             onMove(point)
-        case .leftMouseDragged where drag.changeCount != dragChangeCountAtMouseDown
-            && drag.types?.contains(.fileURL) == true:
-            onFileDrag(point)
+        case .leftMouseDragged where drag.changeCount != dragChangeCountAtMouseDown:
+            let types = drag.types ?? []
+            if types.contains(.fileURL) {
+                onFileDrag(point)
+            } else if types.contains(.string) {
+                onTextDrag(point)
+            } else {
+                onMove(point)
+            }
         default:
             onMove(point)
         }

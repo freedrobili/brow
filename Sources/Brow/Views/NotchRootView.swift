@@ -1,5 +1,6 @@
 import BrowCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The black shape that grows out of the notch.
 struct NotchRootView: View {
@@ -28,11 +29,18 @@ struct NotchRootView: View {
                     .strokeBorder(.white.opacity(0.6), lineWidth: 2)
             }
         }
-        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+        .onDrop(of: [.fileURL, .plainText], isTargeted: $isDropTargeted) { providers in
             for provider in providers {
-                _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                    guard let url else { return }
-                    DispatchQueue.main.async { MainActor.assumeIsolated { model.addToShelf([url]) } }
+                if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                    _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                        guard let url else { return }
+                        DispatchQueue.main.async { MainActor.assumeIsolated { model.addToShelf([url]) } }
+                    }
+                } else {
+                    _ = provider.loadObject(ofClass: String.self) { text, _ in
+                        guard let text else { return }
+                        DispatchQueue.main.async { MainActor.assumeIsolated { model.addDroppedText(text) } }
+                    }
                 }
             }
             return true

@@ -52,6 +52,11 @@ final class AppModel {
         scheduleTick()
     }
 
+    func textDragMoved(to point: CGPoint) {
+        panel?.textDragMoved(to: point, now: .now)
+        scheduleTick()
+    }
+
     func select(_ tab: PanelTab) {
         panel?.select(tab)
     }
@@ -62,6 +67,12 @@ final class AppModel {
 
     func clipboardChanged(_ text: String, types: Set<String>) {
         if clipboard.add(text, types: types) { persist(clipboard, to: clipboardStore) }
+    }
+
+    /// Text dropped on the notch goes into the history without touching the pasteboard.
+    func addDroppedText(_ text: String) {
+        clipboardChanged(text, types: [])
+        select(.clipboard)
     }
 
     /// Copies an entry back without reordering the list under the cursor.
