@@ -2,6 +2,7 @@
 // /usr/bin/perl, because since macOS 15.4 only Apple-signed processes may read now playing info.
 #import <Foundation/Foundation.h>
 #include <dlfcn.h>
+#include <math.h>
 #include <unistd.h>
 #include "BrowMediaRemote.h"
 
@@ -34,12 +35,15 @@ static NSString *InfoKey(const char *name) {
     return constant ? (__bridge NSString *)*constant : @(name);
 }
 
-static void PrintLine(NSDictionary *object) {
-    static NSString *lastLine;
+static NSString *Serialize(NSDictionary *object) {
+    if (![NSJSONSerialization isValidJSONObject:object]) return nil;
     NSData *data = [NSJSONSerialization dataWithJSONObject:object options:0 error:NULL];
-    if (!data) return;
-    NSString *line = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    if ([line isEqualToString:lastLine]) return;
+    return data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : nil;
+}
+
+static void PrintLine(NSString *line) {
+    static NSString *lastLine;
+    if (!line || [line isEqualToString:lastLine]) return;
     lastLine = line;
     fprintf(stdout, "%s\n", line.UTF8String);
     fflush(stdout);
@@ -59,7 +63,8 @@ static NSDictionary *Convert(NSDictionary *info) {
                                @"playbackRate": InfoKey("kMRMediaRemoteNowPlayingInfoPlaybackRate") };
     for (NSString *key in numbers) {
         id value = info[numbers[key]];
-        if ([value isKindOfClass:NSNumber.class]) out[key] = value;
+        // Live streams report an infinite duration; JSON cannot carry NaN or Inf.
+        if ([value isKindOfClass:NSNumber.class] && isfinite([value doubleValue])) out[key] = value;
     }
     id artwork = info[InfoKey("kMRMediaRemoteNowPlayingInfoArtworkData")];
     if ([artwork isKindOfClass:NSData.class]) out[@"artworkBase64"] = [artwork base64EncodedStringWithOptions:0];
@@ -69,19 +74,24 @@ static NSDictionary *Convert(NSDictionary *info) {
     return out;
 }
 
+NSString *brow_json_line(NSDictionary *info, NSString *bundleId) {
+    NSMutableDictionary *out = [Convert(info) mutableCopy];
+    if (bundleId) out[@"bundleId"] = bundleId;
+    return Serialize(out);
+}
+
 static void Emit(void (^done)(void)) {
     MRGetInfoFn getInfo = Symbol("MRMediaRemoteGetNowPlayingInfo");
     MRGetClientFn getClient = Symbol("MRMediaRemoteGetNowPlayingClient");
     MRClientBundleFn clientBundle = Symbol("MRNowPlayingClientGetBundleIdentifier");
-    if (!getInfo) { PrintLine(@{}); if (done) done(); return; }
+    if (!getInfo) { PrintLine(@"{}"); if (done) done(); return; }
     getInfo(dispatch_get_main_queue(), ^(CFDictionaryRef info) {
-        if (!info) { PrintLine(@{}); if (done) done(); return; }
-        NSMutableDictionary *out = [Convert((__bridge NSDictionary *)info) mutableCopy];
-        if (!getClient || !clientBundle) { PrintLine(out); if (done) done(); return; }
+        if (!info) { PrintLine(@"{}"); if (done) done(); return; }
+        NSDictionary *dictionary = (__bridge NSDictionary *)info;
+        if (!getClient || !clientBundle) { PrintLine(brow_json_line(dictionary, nil)); if (done) done(); return; }
         getClient(dispatch_get_main_queue(), ^(id client) {
             CFStringRef bundle = client ? clientBundle(client) : NULL;
-            if (bundle) out[@"bundleId"] = (__bridge NSString *)bundle;
-            PrintLine(out);
+            PrintLine(brow_json_line(dictionary, (__bridge NSString *)bundle));
             if (done) done();
         });
     });

@@ -15,14 +15,31 @@ final class NotchWindowController {
         hostingView.sizingOptions = []
         panel.contentView = hostingView
         model.onPanelExpandedChange = { [weak self] expanded in
-            self?.panel.ignoresMouseEvents = !expanded
+            self?.panelExpandedChanged(expanded)
         }
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.reposition() }
         }
+        // Clicking another app takes key status away; dropping the first responder
+        // ends note editing so the panel can collapse.
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: panel, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { _ = self?.panel.makeFirstResponder(nil) }
+        }
         reposition()
+    }
+
+    private func panelExpandedChanged(_ expanded: Bool) {
+        panel.ignoresMouseEvents = !expanded
+        // A collapsed panel must not keep typing focus (search field, note):
+        // hiding it for a moment hands key status back to the active app.
+        if !expanded && panel.isKeyWindow {
+            panel.orderOut(nil)
+            panel.orderFrontRegardless()
+        }
     }
 
     private func reposition() {

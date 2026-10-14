@@ -16,9 +16,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowController = NotchWindowController(model: model)
         let tracker = MouseTracker(
             onMove: { [model] point in model.mouseMoved(to: point) },
-            onFileDrag: { [model] point in model.fileDragMoved(to: point) }
+            onFileDrag: { [model] point in model.fileDragMoved(to: point) },
+            onTextDrag: { [model] point in model.textDragMoved(to: point) }
         )
         tracker.start()
         mouseTracker = tracker
+        startMedia()
+        let watcher = ClipboardWatcher { [model] text, types in model.clipboardChanged(text, types: types) }
+        watcher.start()
+        model.clipboardWatcher = watcher
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        model.notes.flush()
+        model.mediaController?.stop()
+    }
+
+    private func startMedia() {
+        guard let script = Bundle.main.url(forResource: "brow-media", withExtension: "pl"),
+              let library = Bundle.main.url(forResource: "libBrowMediaRemote", withExtension: "dylib") else {
+            return   // not running from Brow.app: music stays "unavailable"
+        }
+        let controller = MediaController(scriptURL: script, libraryURL: library) { [model] status in
+            model.media = status
+        }
+        model.mediaController = controller
+        controller.start()
     }
 }
