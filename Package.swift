@@ -10,6 +10,11 @@ let package = Package(
     ],
     targets: [
         .target(name: "BrowCore"),
+        .executableTarget(
+            name: "Brow",
+            dependencies: ["BrowCore"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
         .target(
             name: "BrowMediaRemote",
             cSettings: [.unsafeFlags(["-fobjc-arc"])],
