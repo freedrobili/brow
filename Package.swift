@@ -6,9 +6,15 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "BrowCore", targets: ["BrowCore"]),
+        .library(name: "BrowMediaRemote", type: .dynamic, targets: ["BrowMediaRemote"]),
     ],
     targets: [
         .target(name: "BrowCore"),
+        .target(
+            name: "BrowMediaRemote",
+            cSettings: [.unsafeFlags(["-fobjc-arc"])],
+            linkerSettings: [.linkedFramework("Foundation")]
+        ),
         .testTarget(name: "BrowCoreTests", dependencies: ["BrowCore"]),
     ]
 )

@@ -4,3 +4,8 @@ export DEVELOPER_DIR ?= /Applications/Xcode.app/Contents/Developer
 
 test:
 	swift test
+
+.PHONY: helper
+
+helper:
+	swift build -c release --product BrowMediaRemote
