@@ -49,17 +49,23 @@ final class AppModel {
     }
 
     func mouseMoved(to point: CGPoint) {
-        panel?.mouseMoved(to: point, now: .now)
-        scheduleTick()
+        updatePanel { $0.mouseMoved(to: point, now: .now) }
     }
 
     func fileDragMoved(to point: CGPoint) {
-        panel?.fileDragMoved(to: point, now: .now)
-        scheduleTick()
+        updatePanel { $0.fileDragMoved(to: point, now: .now) }
     }
 
     func textDragMoved(to point: CGPoint) {
-        panel?.textDragMoved(to: point, now: .now)
+        updatePanel { $0.textDragMoved(to: point, now: .now) }
+    }
+
+    /// Mouse events arrive for every move anywhere on screen; writing `panel`
+    /// only when it actually changes keeps SwiftUI from redrawing all day.
+    private func updatePanel(_ change: (inout PanelStateMachine) -> Void) {
+        guard var next = panel else { return }
+        change(&next)
+        if next != panel { panel = next }
         scheduleTick()
     }
 

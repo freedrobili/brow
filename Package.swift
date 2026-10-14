@@ -21,5 +21,6 @@ let package = Package(
             linkerSettings: [.linkedFramework("Foundation")]
         ),
         .testTarget(name: "BrowCoreTests", dependencies: ["BrowCore"]),
+        .testTarget(name: "BrowMediaRemoteTests", dependencies: ["BrowMediaRemote"]),
     ]
 )
