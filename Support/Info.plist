@@ -6,6 +6,8 @@
 	<string>com.freedrobili.Brow</string>
 	<key>CFBundleName</key>
 	<string>Brow</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleExecutable</key>
 	<string>Brow</string>
 	<key>CFBundlePackageType</key>

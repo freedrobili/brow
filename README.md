@@ -18,10 +18,13 @@ Brow работает как agent-приложение: иконки в Dock н
 Нужны macOS 14+ и установленный Xcode в `/Applications/Xcode.app`. `xcode-select` переключать не нужно: Makefile сам подставляет `DEVELOPER_DIR`.
 
 ```bash
+make install  # установить в ~/Applications, закрепить в Dock и запустить
 make run    # собрать build/Brow.app и запустить
 make app    # только собрать
 make test   # автотесты BrowCore
 ```
+
+После `make install` Brow запускается кликом по иконке в Dock или через Spotlight (⌘Пробел → «Brow»). Повторный `make install` обновляет установленную версию, второй ярлык в Dock не появится. Иконку рисует `scripts/make-icon.swift`.
 
 ## Как устроено
 
