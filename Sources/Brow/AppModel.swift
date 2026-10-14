@@ -17,6 +17,9 @@ final class AppModel {
         }
     }
 
+    var media: MediaStatus = .unavailable
+    @ObservationIgnored var mediaController: MediaController?
+
     @ObservationIgnored var onPanelExpandedChange: ((Bool) -> Void)?
     @ObservationIgnored private var lastExpanded = false
     @ObservationIgnored private var tickTask: Task<Void, Never>?
@@ -35,6 +38,10 @@ final class AppModel {
 
     func select(_ tab: PanelTab) {
         panel?.select(tab)
+    }
+
+    func sendMedia(_ command: MediaCommand) {
+        mediaController?.send(command)
     }
 
     /// Wakes up at the collapse deadline so the panel closes even if the mouse stops moving.

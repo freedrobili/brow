@@ -24,5 +24,5 @@ app:
 	codesign --force --sign - $(APP)
 
 run: app
-	pkill -x Brow || true
+	pkill -x Brow && sleep 1 || true
 	open $(APP)

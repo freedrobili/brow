@@ -20,5 +20,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         tracker.start()
         mouseTracker = tracker
+        startMedia()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        model.mediaController?.stop()
+    }
+
+    private func startMedia() {
+        guard let script = Bundle.main.url(forResource: "brow-media", withExtension: "pl"),
+              let library = Bundle.main.url(forResource: "libBrowMediaRemote", withExtension: "dylib") else {
+            return   // not running from Brow.app: music stays "unavailable"
+        }
+        let controller = MediaController(scriptURL: script, libraryURL: library) { [model] status in
+            model.media = status
+        }
+        model.mediaController = controller
+        controller.start()
     }
 }

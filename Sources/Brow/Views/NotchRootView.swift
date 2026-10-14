@@ -30,7 +30,8 @@ struct NotchRootView: View {
 
     private var content: some View {
         VStack(spacing: 6) {
-            Color.clear.frame(height: 56)   // music
+            MusicView(model: model)
+                .frame(height: 56)
             tabBar
             tabContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
