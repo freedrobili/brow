@@ -82,4 +82,17 @@ final class PanelStateMachineTests: XCTestCase {
         XCTAssertEqual(m.state, .collapsed)
         XCTAssertEqual(m.selectedTab, .shelf)
     }
+
+    func testTopEdgeOfScreenCountsAsInside() {
+        m.mouseMoved(to: CGPoint(x: 756, y: 982), now: t0)   // y == frame.maxY
+        XCTAssertEqual(m.state, .expanded)
+        m.mouseMoved(to: CGPoint(x: 756, y: 982), now: t0)
+        XCTAssertEqual(m.state, .expanded)
+    }
+
+    func testNoOpMoveLeavesValueEqual() {
+        let before = m!
+        m.mouseMoved(to: CGPoint(x: 100, y: 100), now: t0)
+        XCTAssertEqual(m, before)
+    }
 }
