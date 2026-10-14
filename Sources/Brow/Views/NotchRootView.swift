@@ -59,7 +59,7 @@ struct NotchRootView: View {
     @ViewBuilder private var tabContent: some View {
         switch model.panel?.selectedTab ?? .shelf {
         case .shelf: Color.clear
-        case .clipboard: Color.clear
+        case .clipboard: ClipboardView(model: model)
         case .notes: Color.clear
         }
     }

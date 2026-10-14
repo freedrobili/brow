@@ -15,7 +15,7 @@ final class NotchWindowController {
         hostingView.sizingOptions = []
         panel.contentView = hostingView
         model.onPanelExpandedChange = { [weak self] expanded in
-            self?.panel.ignoresMouseEvents = !expanded
+            self?.panelExpandedChanged(expanded)
         }
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
@@ -23,6 +23,16 @@ final class NotchWindowController {
             MainActor.assumeIsolated { self?.reposition() }
         }
         reposition()
+    }
+
+    private func panelExpandedChanged(_ expanded: Bool) {
+        panel.ignoresMouseEvents = !expanded
+        // A collapsed panel must not keep typing focus (search field, note):
+        // hiding it for a moment hands key status back to the active app.
+        if !expanded && panel.isKeyWindow {
+            panel.orderOut(nil)
+            panel.orderFrontRegardless()
+        }
     }
 
     private func reposition() {
