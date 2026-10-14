@@ -27,12 +27,9 @@ final class AppModel {
     }
     @ObservationIgnored var mediaController: MediaController?
     @ObservationIgnored var clipboardWatcher: ClipboardWatcher?
-    @ObservationIgnored private let clipboardStore = JSONFileStore<ClipboardHistory>(
-        directory: JSONFileStore<ClipboardHistory>.defaultDirectory, name: "clipboard")
-    @ObservationIgnored private let shelfStore = JSONFileStore<ShelfStore>(
-        directory: JSONFileStore<ShelfStore>.defaultDirectory, name: "shelf")
-    @ObservationIgnored let notes = NotesStore(store: JSONFileStore<String>(
-        directory: JSONFileStore<String>.defaultDirectory, name: "notes"))
+    @ObservationIgnored private let clipboardStore: JSONFileStore<ClipboardHistory>
+    @ObservationIgnored private let shelfStore: JSONFileStore<ShelfStore>
+    @ObservationIgnored let notes: NotesStore
     @ObservationIgnored private let logger = Logger(subsystem: "com.freedrobili.Brow", category: "storage")
 
     @ObservationIgnored var onPanelExpandedChange: ((Bool) -> Void)?
@@ -41,7 +38,12 @@ final class AppModel {
 
     var isExpanded: Bool { panel?.isExpanded ?? false }
 
-    init() {
+    /// `directory` holds clipboard.json, shelf.json and notes.json; the screenshot
+    /// renderer points it at a temporary folder so real data never shows up.
+    init(directory: URL = JSONFileStore<String>.defaultDirectory) {
+        clipboardStore = JSONFileStore(directory: directory, name: "clipboard")
+        shelfStore = JSONFileStore(directory: directory, name: "shelf")
+        notes = NotesStore(store: JSONFileStore(directory: directory, name: "notes"))
         clipboard = clipboardStore.load() ?? ClipboardHistory()
         shelf = shelfStore.load() ?? ShelfStore()
         noteText = notes.text
