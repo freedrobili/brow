@@ -4,6 +4,7 @@ import SwiftUI
 /// The black shape that grows out of the notch.
 struct NotchRootView: View {
     let model: AppModel
+    @State private var isDropTargeted = false
 
     var body: some View {
         let expanded = model.isExpanded
@@ -21,6 +22,21 @@ struct NotchRootView: View {
             }
         }
         .frame(width: size.width, height: size.height)
+        .overlay {
+            if isDropTargeted {
+                UnevenRoundedRectangle(bottomLeadingRadius: radius, bottomTrailingRadius: radius)
+                    .strokeBorder(.white.opacity(0.6), lineWidth: 2)
+            }
+        }
+        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+            for provider in providers {
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    guard let url else { return }
+                    DispatchQueue.main.async { MainActor.assumeIsolated { model.addToShelf([url]) } }
+                }
+            }
+            return true
+        }
         .contextMenu {
             Button("Выйти из Brow") { NSApp.terminate(nil) }
         }
@@ -58,7 +74,7 @@ struct NotchRootView: View {
 
     @ViewBuilder private var tabContent: some View {
         switch model.panel?.selectedTab ?? .shelf {
-        case .shelf: Color.clear
+        case .shelf: ShelfView(model: model)
         case .clipboard: ClipboardView(model: model)
         case .notes: Color.clear
         }

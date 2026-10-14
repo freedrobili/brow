@@ -13,6 +13,7 @@ final class AppModel {
             let expanded = panel?.isExpanded ?? false
             if expanded != lastExpanded {
                 lastExpanded = expanded
+                if expanded { refreshShelf() }
                 onPanelExpandedChange?(expanded)
             }
         }
@@ -20,10 +21,13 @@ final class AppModel {
 
     var media: MediaStatus = .unavailable
     var clipboard: ClipboardHistory
+    var shelf: ShelfStore
     @ObservationIgnored var mediaController: MediaController?
     @ObservationIgnored var clipboardWatcher: ClipboardWatcher?
     @ObservationIgnored private let clipboardStore = JSONFileStore<ClipboardHistory>(
         directory: JSONFileStore<ClipboardHistory>.defaultDirectory, name: "clipboard")
+    @ObservationIgnored private let shelfStore = JSONFileStore<ShelfStore>(
+        directory: JSONFileStore<ShelfStore>.defaultDirectory, name: "shelf")
     @ObservationIgnored private let logger = Logger(subsystem: "com.freedrobili.Brow", category: "storage")
 
     @ObservationIgnored var onPanelExpandedChange: ((Bool) -> Void)?
@@ -34,6 +38,8 @@ final class AppModel {
 
     init() {
         clipboard = clipboardStore.load() ?? ClipboardHistory()
+        shelf = shelfStore.load() ?? ShelfStore()
+        refreshShelf()
     }
 
     func mouseMoved(to point: CGPoint) {
@@ -61,6 +67,37 @@ final class AppModel {
     /// Copies an entry back without reordering the list under the cursor.
     func copyFromHistory(_ entry: ClipboardEntry) {
         clipboardWatcher?.copy(entry.text)
+    }
+
+    func addToShelf(_ urls: [URL]) {
+        for url in urls {
+            do {
+                try shelf.add(url)
+            } catch {
+                logger.error("Shelf add failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        persist(shelf, to: shelfStore)
+        select(.shelf)
+    }
+
+    func removeFromShelf(_ id: UUID) {
+        shelf.remove(id: id)
+        persist(shelf, to: shelfStore)
+    }
+
+    func clearShelf() {
+        shelf.removeAll()
+        persist(shelf, to: shelfStore)
+    }
+
+    /// Drops items whose files were deleted or trashed, follows renamed ones.
+    private func refreshShelf() {
+        var refreshed = shelf
+        refreshed.resolveAll()
+        guard refreshed != shelf else { return }
+        shelf = refreshed
+        persist(shelf, to: shelfStore)
     }
 
     private func persist<Value>(_ value: Value, to store: JSONFileStore<Value>) {
