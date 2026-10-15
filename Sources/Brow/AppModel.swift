@@ -13,13 +13,17 @@ final class AppModel {
             let expanded = panel?.isExpanded ?? false
             if expanded != lastExpanded {
                 lastExpanded = expanded
-                if expanded { refreshShelf() }
+                if expanded {
+                    refreshShelf()
+                    launchAtLogin = LoginItem.isEnabled   // may have changed in System Settings
+                }
                 onPanelExpandedChange?(expanded)
             }
         }
     }
 
     var media: MediaStatus = .unavailable
+    var launchAtLogin = false
     var clipboard: ClipboardHistory
     var shelf: ShelfStore
     var screenshots: ScreenshotHistory
@@ -89,6 +93,11 @@ final class AppModel {
     func setEditingNote(_ editing: Bool) {
         panel?.isEditingNote = editing
         if !editing { mouseMoved(to: NSEvent.mouseLocation) }
+    }
+
+    func setLaunchAtLogin(_ enabled: Bool) {
+        LoginItem.setEnabled(enabled)
+        launchAtLogin = LoginItem.isEnabled
     }
 
     func sendMedia(_ command: MediaCommand) {

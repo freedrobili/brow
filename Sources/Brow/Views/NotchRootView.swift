@@ -46,6 +46,10 @@ struct NotchRootView: View {
             return true
         }
         .contextMenu {
+            Toggle("Запускать при входе в систему", isOn: Binding(
+                get: { model.launchAtLogin },
+                set: { model.setLaunchAtLogin($0) }))
+            Divider()
             Button("Выйти из Brow") { NSApp.terminate(nil) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
