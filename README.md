@@ -154,7 +154,7 @@ defaults delete com.freedrobili.Brow
 ## Для разработчиков
 
 ```bash
-make run    # собрать build/Brow.app и запустить
+make run    # собрать копию для разработки и запустить
 make app    # только собрать
 make test   # автотесты
 ```

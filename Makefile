@@ -1,6 +1,7 @@
 export DEVELOPER_DIR ?= /Applications/Xcode.app/Contents/Developer
 
-APP := build/Brow.app
+# Spotlight skips *.noindex folders, so this development copy never shows up there.
+APP := .build/app.noindex/Brow.app
 INSTALLED := $(HOME)/Applications/Brow.app
 RELEASE := .build/release
 
@@ -36,6 +37,7 @@ install: app
 	mkdir -p $(HOME)/Applications
 	rm -rf $(INSTALLED)
 	cp -R $(APP) $(INSTALLED)
+	scripts/check-other-copies.sh $(INSTALLED)
 	open $(INSTALLED)
 
 # Redraws the README pictures in docs/screenshots from the real views with demo data.
