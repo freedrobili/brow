@@ -24,7 +24,7 @@ public struct NotchGeometry: Sendable, Equatable {
     public static let expandedSize = CGSize(width: 480, height: 200)
     /// How far inside each side of the notch the hover zone starts, so passing
     /// the cursor near the notch does not open the panel by accident.
-    public static let hoverInset: CGFloat = 10
+    public static let hoverInset: CGFloat = 3
 
     public let notchRect: CGRect
     /// The notch narrowed by `hoverInset` on the left and right; nothing below it.

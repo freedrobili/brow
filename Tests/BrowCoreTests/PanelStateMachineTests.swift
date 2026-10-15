@@ -20,10 +20,15 @@ final class PanelStateMachineTests: XCTestCase {
     }
 
     func testNotchSideEdgeDoesNotExpand() {
-        m.mouseMoved(to: CGPoint(x: 668, y: 970), now: t0)   // inside the notch, within 10 pt of its left edge
+        m.mouseMoved(to: CGPoint(x: 665, y: 970), now: t0)   // inside the notch, within 3 pt of its left edge
         XCTAssertEqual(m.state, .collapsed)
-        m.mouseMoved(to: CGPoint(x: 844, y: 970), now: t0)   // same on the right
+        m.mouseMoved(to: CGPoint(x: 847, y: 970), now: t0)   // same on the right
         XCTAssertEqual(m.state, .collapsed)
+    }
+
+    func testJustInsideNotchSideExpands() {
+        m.mouseMoved(to: CGPoint(x: 668, y: 970), now: t0)   // 4.5 pt in from the left edge
+        XCTAssertEqual(m.state, .expanded)
     }
 
     func testMenuBarBesideNotchDoesNotExpand() {
