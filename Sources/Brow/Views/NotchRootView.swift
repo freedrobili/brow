@@ -84,6 +84,7 @@ struct NotchRootView: View {
         switch model.panel?.selectedTab ?? .shelf {
         case .shelf: ShelfView(model: model)
         case .clipboard: ClipboardView(model: model)
+        case .screenshots: ScreenshotsView(model: model)
         case .notes: NotesView(model: model)
         }
     }
@@ -94,6 +95,7 @@ extension PanelTab {
         switch self {
         case .shelf: "tray"
         case .clipboard: "doc.on.clipboard"
+        case .screenshots: "camera.viewfinder"
         case .notes: "note.text"
         }
     }
