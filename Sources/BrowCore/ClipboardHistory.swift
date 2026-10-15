@@ -40,6 +40,14 @@ public struct ClipboardHistory: Codable, Equatable, Sendable {
         return true
     }
 
+    public mutating func remove(id: UUID) {
+        entries.removeAll { $0.id == id }
+    }
+
+    public mutating func removeAll() {
+        entries.removeAll()
+    }
+
     public func search(_ query: String) -> [ClipboardEntry] {
         guard !query.isEmpty else { return entries }
         return entries.filter { $0.text.localizedCaseInsensitiveContains(query) }

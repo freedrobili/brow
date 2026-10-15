@@ -38,4 +38,19 @@ final class ScreenshotHistoryTests: XCTestCase {
         XCTAssertEqual(h.entries, [kept])
         XCTAssertEqual(kept.url(in: dir).lastPathComponent, "\(kept.id.uuidString).png")
     }
+
+    func testRemoveByIdReturnsEntry() {
+        let a = ScreenshotEntry(), b = ScreenshotEntry()
+        h.add(a); h.add(b)
+        XCTAssertEqual(h.remove(id: a.id), a)
+        XCTAssertEqual(h.entries, [b])
+        XCTAssertNil(h.remove(id: a.id))
+    }
+
+    func testRemoveAllReturnsEverything() {
+        let a = ScreenshotEntry(), b = ScreenshotEntry()
+        h.add(a); h.add(b)
+        XCTAssertEqual(h.removeAll(), [b, a])
+        XCTAssertTrue(h.entries.isEmpty)
+    }
 }
