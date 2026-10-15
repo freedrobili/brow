@@ -74,9 +74,10 @@ struct NotchRootView: View {
             ForEach(PanelTab.allCases, id: \.self) { tab in
                 Button { model.select(tab) } label: {
                     Image(systemName: tab.symbol)
-                        .frame(width: 32, height: 22)
+                        .frame(width: 40, height: 24)
                         .background(model.panel?.selectedTab == tab ? Color.white.opacity(0.18) : .clear,
                                     in: RoundedRectangle(cornerRadius: 6))
+                        .contentShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
             }

@@ -85,7 +85,7 @@ struct MusicView: View {
 
     private var controls: some View {
         let isPlaying = if case .playing(let nowPlaying) = model.media { nowPlaying.isPlaying } else { false }
-        return HStack(spacing: 14) {
+        return HStack(spacing: 6) {
             button("backward.fill", size: 14) { model.sendMedia(.previous) }
             button(isPlaying ? "pause.fill" : "play.fill", size: 20) { model.sendMedia(.toggle) }
             button("forward.fill", size: 14) { model.sendMedia(.next) }
@@ -98,7 +98,7 @@ struct MusicView: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: size))
-                .frame(width: 24, height: 24)
+                .frame(width: 32, height: 32)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

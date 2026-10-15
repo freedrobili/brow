@@ -8,7 +8,7 @@ final class NotchGeometryTests: XCTestCase {
     func testMacBookPro14() {
         let g = NotchGeometry(screen: mbp14)!
         XCTAssertEqual(g.notchRect, CGRect(x: 663.5, y: 950, width: 185, height: 32))
-        XCTAssertEqual(g.hoverRect, CGRect(x: 653.5, y: 940, width: 205, height: 42))
+        XCTAssertEqual(g.hoverRect, CGRect(x: 666.5, y: 950, width: 179, height: 32))   // notch minus 3 pt per side
         XCTAssertEqual(g.panelRect, CGRect(x: 516, y: 782, width: 480, height: 200))
     }
 
