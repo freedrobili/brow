@@ -4,8 +4,10 @@ export DEVELOPER_DIR ?= /Applications/Xcode.app/Contents/Developer
 APP := .build/app.noindex/Brow.app
 INSTALLED := $(HOME)/Applications/Brow.app
 RELEASE := .build/release
+VERSION := $(shell /usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Support/Info.plist)
+ZIP := .build/dist/Brow-$(VERSION).zip
 
-.PHONY: test helper app run install screenshots
+.PHONY: test helper app run install screenshots release
 
 test:
 	swift test
@@ -44,3 +46,10 @@ install: app
 screenshots:
 	swift build -c release
 	$(RELEASE)/Brow --render-screenshots docs/screenshots
+
+# Packs the app for GitHub Releases; ditto keeps the code signature intact.
+release: test app
+	rm -f $(ZIP)
+	mkdir -p $(dir $(ZIP))
+	ditto -c -k --sequesterRsrc --keepParent $(APP) $(ZIP)
+	@echo "Ready: $(ZIP)"

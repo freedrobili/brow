@@ -196,6 +196,7 @@ defaults delete com.freedrobili.Brow
 make run    # собрать копию для разработки и запустить
 make app    # только собрать
 make test   # автотесты
+make release  # тесты + архив Brow-<версия>.zip для GitHub Releases (в .build/dist)
 ```
 
 Makefile сам указывает на Xcode в `/Applications/Xcode.app`, переключать `xcode-select` не нужно.
