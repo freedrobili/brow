@@ -18,10 +18,7 @@ struct ClipboardView: View {
                     .padding(.vertical, 3)
                     .background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
                 if !model.clipboard.entries.isEmpty {
-                    Button("Очистить всё") { model.clearHistory() }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.6))
+                    PanelTextButton("Очистить всё") { model.clearHistory() }
                 }
             }
             if results.isEmpty {
@@ -44,14 +41,11 @@ struct ClipboardView: View {
     private func row(_ entry: ClipboardEntry) -> some View {
         HStack(spacing: 4) {
             copyButton(entry)
-            Button { model.removeFromHistory(entry.id) } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.45))
-                    .frame(width: 18, height: 18)
-                    .contentShape(Rectangle())
+            // As tall as the row so the list keeps its height, wider to make up for it.
+            RemoveButton(symbol: "xmark", size: 9, hitArea: CGSize(width: 26, height: 20)) {
+                model.removeFromHistory(entry.id)
             }
-            .buttonStyle(.plain)
+                .foregroundStyle(.white.opacity(0.45))
         }
     }
 

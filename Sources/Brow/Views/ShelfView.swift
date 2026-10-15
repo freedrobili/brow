@@ -21,10 +21,7 @@ struct ShelfView: View {
                         }
                     }
                 }
-                Button("Очистить всё") { model.clearShelf() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.6))
+                PanelTextButton("Очистить всё") { model.clearShelf() }
             }
         }
     }
@@ -43,12 +40,8 @@ struct ShelfView: View {
         .contentShape(Rectangle())
         .onDrag { NSItemProvider(object: item.url as NSURL) }
         .overlay(alignment: .topTrailing) {
-            Button { model.removeFromShelf(item.id) } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.7))
-            }
-            .buttonStyle(.plain)
+            RemoveButton { model.removeFromShelf(item.id) }
+                .foregroundStyle(.white.opacity(0.7))
         }
     }
 }

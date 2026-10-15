@@ -20,10 +20,7 @@ struct ScreenshotsView: View {
                     thumbnail(entry)
                 }
                 Spacer(minLength: 0)
-                Button("Очистить всё") { model.clearScreenshots() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.6))
+                PanelTextButton("Очистить всё") { model.clearScreenshots() }
             }
         }
     }
@@ -60,13 +57,8 @@ struct ScreenshotsView: View {
             model.exportScreenshot(entry).flatMap { NSItemProvider(contentsOf: $0) } ?? NSItemProvider()
         }
         .overlay(alignment: .topTrailing) {
-            Button { model.removeScreenshot(entry.id) } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white, .black.opacity(0.6))
-            }
-            .buttonStyle(.plain)
-            .padding(3)
+            RemoveButton(size: 13) { model.removeScreenshot(entry.id) }
+                .foregroundStyle(.white, .black.opacity(0.6))
         }
     }
 }
