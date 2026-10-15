@@ -22,10 +22,12 @@ public struct NotchScreenInfo: Sendable, Equatable {
 /// Rectangles around the notch, all in global AppKit coordinates.
 public struct NotchGeometry: Sendable, Equatable {
     public static let expandedSize = CGSize(width: 480, height: 200)
-    public static let hoverPadding: CGFloat = 10
+    /// How far inside each side of the notch the hover zone starts, so passing
+    /// the cursor near the notch does not open the panel by accident.
+    public static let hoverInset: CGFloat = 10
 
     public let notchRect: CGRect
-    /// The notch widened by `hoverPadding` on the left, right and bottom.
+    /// The notch narrowed by `hoverInset` on the left and right; nothing below it.
     public let hoverRect: CGRect
     /// The expanded panel: centered on the notch, flush with the top of the screen.
     public let panelRect: CGRect
@@ -40,11 +42,7 @@ public struct NotchGeometry: Sendable, Equatable {
                            y: frame.maxY - screen.safeAreaTop,
                            width: frame.width - left - right,
                            height: screen.safeAreaTop)
-        let pad = Self.hoverPadding
-        hoverRect = CGRect(x: notchRect.minX - pad,
-                           y: notchRect.minY - pad,
-                           width: notchRect.width + 2 * pad,
-                           height: notchRect.height + pad)
+        hoverRect = notchRect.insetBy(dx: Self.hoverInset, dy: 0)
         let size = Self.expandedSize
         panelRect = CGRect(x: notchRect.midX - size.width / 2,
                            y: frame.maxY - size.height,
