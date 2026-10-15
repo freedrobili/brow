@@ -119,6 +119,32 @@ final class AppModel {
         clipboardWatcher?.copy(entry.text)
     }
 
+    /// Removes entries from Brow's history only; the system pasteboard is left alone.
+    func removeFromHistory(_ id: UUID) {
+        clipboard.remove(id: id)
+        persist(clipboard, to: clipboardStore)
+    }
+
+    func clearHistory() {
+        clipboard.removeAll()
+        persist(clipboard, to: clipboardStore)
+    }
+
+    func removeScreenshot(_ id: UUID) {
+        if let removed = screenshots.remove(id: id) { deleteScreenshotFile(removed) }
+        persist(screenshots, to: screenshotsStore)
+    }
+
+    func clearScreenshots() {
+        screenshots.removeAll().forEach(deleteScreenshotFile)
+        persist(screenshots, to: screenshotsStore)
+    }
+
+    private func deleteScreenshotFile(_ entry: ScreenshotEntry) {
+        try? FileManager.default.removeItem(at: entry.url(in: screenshotsDirectory))
+        thumbnails[entry.id] = nil
+    }
+
     func screenshotTaken(_ png: Data) {
         let entry = ScreenshotEntry()
         do {
@@ -128,10 +154,7 @@ final class AppModel {
             logger.error("Saving screenshot failed: \(error.localizedDescription, privacy: .public)")
             return
         }
-        for evicted in screenshots.add(entry) {
-            try? FileManager.default.removeItem(at: evicted.url(in: screenshotsDirectory))
-            thumbnails[evicted.id] = nil
-        }
+        screenshots.add(entry).forEach(deleteScreenshotFile)
         persist(screenshots, to: screenshotsStore)
     }
 

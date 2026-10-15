@@ -1,7 +1,8 @@
 import BrowCore
 import SwiftUI
 
-/// The last screenshots taken to the clipboard: click copies one back, drag gives a PNG file.
+/// The last screenshots taken to the clipboard: click copies one back, drag gives
+/// a PNG file, × removes it.
 struct ScreenshotsView: View {
     let model: AppModel
     @State private var copiedId: UUID?
@@ -14,11 +15,15 @@ struct ScreenshotsView: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            HStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 6) {
                 ForEach(model.screenshots.entries) { entry in
                     thumbnail(entry)
                 }
                 Spacer(minLength: 0)
+                Button("Очистить всё") { model.clearScreenshots() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.6))
             }
         }
     }
@@ -39,7 +44,7 @@ struct ScreenshotsView: View {
                     .foregroundStyle(.green)
             }
         }
-        .frame(width: 80, height: 56)
+        .frame(width: 68, height: 50)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.white.opacity(0.15)))
         .contentShape(Rectangle())
@@ -53,6 +58,15 @@ struct ScreenshotsView: View {
         }
         .onDrag {
             model.exportScreenshot(entry).flatMap { NSItemProvider(contentsOf: $0) } ?? NSItemProvider()
+        }
+        .overlay(alignment: .topTrailing) {
+            Button { model.removeScreenshot(entry.id) } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white, .black.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .padding(3)
         }
     }
 }

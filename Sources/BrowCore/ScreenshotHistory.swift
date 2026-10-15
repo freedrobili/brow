@@ -35,6 +35,20 @@ public struct ScreenshotHistory: Codable, Equatable, Sendable {
         return evicted
     }
 
+    /// Returns the removed entry, so the caller can delete its file.
+    @discardableResult
+    public mutating func remove(id: UUID) -> ScreenshotEntry? {
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return nil }
+        return entries.remove(at: index)
+    }
+
+    /// Returns all removed entries, so the caller can delete their files.
+    @discardableResult
+    public mutating func removeAll() -> [ScreenshotEntry] {
+        defer { entries.removeAll() }
+        return entries
+    }
+
     public mutating func removeMissing(in directory: URL) {
         entries.removeAll { !FileManager.default.fileExists(atPath: $0.url(in: directory).path) }
     }

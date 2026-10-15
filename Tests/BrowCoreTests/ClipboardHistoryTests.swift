@@ -44,4 +44,16 @@ final class ClipboardHistoryTests: XCTestCase {
         XCTAssertEqual(h.entries[0].text.count, 20_000)
         XCTAssertEqual(h.entries[0].preview.count, 10_000)
     }
+
+    func testRemoveById() {
+        h.add("a"); h.add("b"); h.add("c")
+        h.remove(id: h.entries[1].id)
+        XCTAssertEqual(h.entries.map(\.text), ["c", "a"])
+    }
+
+    func testRemoveAll() {
+        h.add("a"); h.add("b")
+        h.removeAll()
+        XCTAssertTrue(h.entries.isEmpty)
+    }
 }
