@@ -22,7 +22,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tracker.start()
         mouseTracker = tracker
         startMedia()
-        let watcher = ClipboardWatcher { [model] text, types in model.clipboardChanged(text, types: types) }
+        LoginItem.autoEnableIfNeeded()
+        model.launchAtLogin = LoginItem.isEnabled
+        let watcher = ClipboardWatcher(
+            onText: { [model] text, types in model.clipboardChanged(text, types: types) },
+            onScreenshot: { [model] png in model.screenshotTaken(png) }
+        )
         watcher.start()
         model.clipboardWatcher = watcher
     }

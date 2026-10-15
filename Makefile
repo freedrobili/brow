@@ -29,13 +29,13 @@ run: app
 	pkill -x Brow && sleep 1 || true
 	open $(APP)
 
-# Copies Brow.app to ~/Applications (Spotlight, Launchpad), pins it to the Dock and starts it.
+# Copies Brow.app to ~/Applications (Spotlight, Launchpad) and starts it;
+# on its first launch from there Brow turns on "open at login".
 install: app
 	pkill -x Brow && sleep 1 || true
 	mkdir -p $(HOME)/Applications
 	rm -rf $(INSTALLED)
 	cp -R $(APP) $(INSTALLED)
-	scripts/add-to-dock.sh $(INSTALLED)
 	open $(INSTALLED)
 
 # Redraws the README pictures in docs/screenshots from the real views with demo data.

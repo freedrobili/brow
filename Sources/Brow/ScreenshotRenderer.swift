@@ -22,7 +22,8 @@ enum ScreenshotRenderer {
 
         try render(model, to: outputDirectory.appendingPathComponent("collapsed.png"))
         model.mouseMoved(to: CGPoint(x: geometry.notchRect.midX, y: geometry.notchRect.midY))
-        for (tab, name) in [(PanelTab.shelf, "shelf"), (.clipboard, "clipboard"), (.notes, "notes")] {
+        for (tab, name) in [(PanelTab.shelf, "shelf"), (.clipboard, "clipboard"),
+                            (.screenshots, "screenshots"), (.notes, "notes")] {
             model.select(tab)
             try render(model, to: outputDirectory.appendingPathComponent("\(name).png"))
         }
@@ -51,6 +52,13 @@ enum ScreenshotRenderer {
         }
         model.addToShelf((files + ["Проект"]).map { directory.appendingPathComponent($0) })
 
+        for (top, bottom) in [((0.95, 0.55, 0.35), (0.85, 0.25, 0.45)),
+                              ((0.3, 0.7, 0.95), (0.2, 0.3, 0.8)),
+                              ((0.45, 0.85, 0.6), (0.1, 0.5, 0.45)),
+                              ((0.98, 0.85, 0.4), (0.95, 0.5, 0.3))] {
+            if let png = demoScreenshot(top: top, bottom: bottom) { model.screenshotTaken(png) }
+        }
+
         model.noteText = "Купить: молоко, кофе\nПозвонить в сервис до пятницы\nИдея: тёмная тема для полки"
     }
 
@@ -76,6 +84,27 @@ enum ScreenshotRenderer {
         }
         try png.write(to: url)
         print("wrote \(url.path)")
+    }
+
+    /// A fake window on a gradient, standing in for a real screenshot.
+    private static func demoScreenshot(top: (Double, Double, Double), bottom: (Double, Double, Double)) -> Data? {
+        let image = NSImage(size: NSSize(width: 800, height: 520), flipped: false) { rect in
+            NSGradient(starting: NSColor(calibratedRed: top.0, green: top.1, blue: top.2, alpha: 1),
+                       ending: NSColor(calibratedRed: bottom.0, green: bottom.1, blue: bottom.2, alpha: 1))!
+                .draw(in: rect, angle: -60)
+            let window = rect.insetBy(dx: 120, dy: 90)
+            NSColor.white.withAlphaComponent(0.92).setFill()
+            NSBezierPath(roundedRect: window, xRadius: 18, yRadius: 18).fill()
+            NSColor.black.withAlphaComponent(0.12).setFill()
+            for row in 0..<4 {
+                let y = window.maxY - 70 - CGFloat(row) * 60
+                NSBezierPath(roundedRect: NSRect(x: window.minX + 40, y: y, width: window.width - 80 - CGFloat(row) * 60, height: 26),
+                             xRadius: 13, yRadius: 13).fill()
+            }
+            return true
+        }
+        guard let tiff = image.tiffRepresentation else { return nil }
+        return NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:])
     }
 
     /// A plain gradient square standing in for album art.

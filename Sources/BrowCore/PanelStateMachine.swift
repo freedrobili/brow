@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 
 public enum PanelTab: String, Codable, Sendable, CaseIterable {
-    case shelf, clipboard, notes
+    case shelf, clipboard, screenshots, notes
 }
 
 public enum PanelState: Equatable, Sendable {

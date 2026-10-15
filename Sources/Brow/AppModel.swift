@@ -13,15 +13,20 @@ final class AppModel {
             let expanded = panel?.isExpanded ?? false
             if expanded != lastExpanded {
                 lastExpanded = expanded
-                if expanded { refreshShelf() }
+                if expanded {
+                    refreshShelf()
+                    launchAtLogin = LoginItem.isEnabled   // may have changed in System Settings
+                }
                 onPanelExpandedChange?(expanded)
             }
         }
     }
 
     var media: MediaStatus = .unavailable
+    var launchAtLogin = false
     var clipboard: ClipboardHistory
     var shelf: ShelfStore
+    var screenshots: ScreenshotHistory
     var noteText: String {
         didSet { notes.update(noteText) }
     }
@@ -29,6 +34,10 @@ final class AppModel {
     @ObservationIgnored var clipboardWatcher: ClipboardWatcher?
     @ObservationIgnored private let clipboardStore: JSONFileStore<ClipboardHistory>
     @ObservationIgnored private let shelfStore: JSONFileStore<ShelfStore>
+    @ObservationIgnored private let screenshotsStore: JSONFileStore<ScreenshotHistory>
+    /// PNG files of `screenshots`, one per entry.
+    @ObservationIgnored let screenshotsDirectory: URL
+    @ObservationIgnored private var thumbnails: [UUID: NSImage] = [:]
     @ObservationIgnored let notes: NotesStore
     @ObservationIgnored private let logger = Logger(subsystem: "com.freedrobili.Brow", category: "storage")
 
@@ -38,16 +47,21 @@ final class AppModel {
 
     var isExpanded: Bool { panel?.isExpanded ?? false }
 
-    /// `directory` holds clipboard.json, shelf.json and notes.json; the screenshot
-    /// renderer points it at a temporary folder so real data never shows up.
+    /// `directory` holds clipboard.json, shelf.json, screenshots.json, notes.json and
+    /// the Screenshots folder; the README renderer points it at a temporary folder
+    /// so real data never shows up.
     init(directory: URL = JSONFileStore<String>.defaultDirectory) {
         clipboardStore = JSONFileStore(directory: directory, name: "clipboard")
         shelfStore = JSONFileStore(directory: directory, name: "shelf")
+        screenshotsStore = JSONFileStore(directory: directory, name: "screenshots")
+        screenshotsDirectory = directory.appendingPathComponent("Screenshots", isDirectory: true)
         notes = NotesStore(store: JSONFileStore(directory: directory, name: "notes"))
         clipboard = clipboardStore.load() ?? ClipboardHistory()
         shelf = shelfStore.load() ?? ShelfStore()
+        screenshots = screenshotsStore.load() ?? ScreenshotHistory()
         noteText = notes.text
         refreshShelf()
+        tidyScreenshots()
     }
 
     func mouseMoved(to point: CGPoint) {
@@ -81,6 +95,11 @@ final class AppModel {
         if !editing { mouseMoved(to: NSEvent.mouseLocation) }
     }
 
+    func setLaunchAtLogin(_ enabled: Bool) {
+        LoginItem.setEnabled(enabled)
+        launchAtLogin = LoginItem.isEnabled
+    }
+
     func sendMedia(_ command: MediaCommand) {
         mediaController?.send(command)
     }
@@ -98,6 +117,72 @@ final class AppModel {
     /// Copies an entry back without reordering the list under the cursor.
     func copyFromHistory(_ entry: ClipboardEntry) {
         clipboardWatcher?.copy(entry.text)
+    }
+
+    func screenshotTaken(_ png: Data) {
+        let entry = ScreenshotEntry()
+        do {
+            try FileManager.default.createDirectory(at: screenshotsDirectory, withIntermediateDirectories: true)
+            try png.write(to: entry.url(in: screenshotsDirectory), options: .atomic)
+        } catch {
+            logger.error("Saving screenshot failed: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+        for evicted in screenshots.add(entry) {
+            try? FileManager.default.removeItem(at: evicted.url(in: screenshotsDirectory))
+            thumbnails[evicted.id] = nil
+        }
+        persist(screenshots, to: screenshotsStore)
+    }
+
+    func copyScreenshot(_ entry: ScreenshotEntry) {
+        guard let png = try? Data(contentsOf: entry.url(in: screenshotsDirectory)) else { return }
+        clipboardWatcher?.copy(png: png)
+    }
+
+    /// A small cached copy for the tab; the originals are full screen size.
+    func thumbnail(for entry: ScreenshotEntry) -> NSImage? {
+        if let cached = thumbnails[entry.id] { return cached }
+        guard let image = NSImage(contentsOf: entry.url(in: screenshotsDirectory)) else { return nil }
+        let size = NSSize(width: 160, height: 112)
+        let scale = max(size.width / image.size.width, size.height / image.size.height)
+        let target = NSSize(width: image.size.width * scale, height: image.size.height * scale)
+        let thumbnail = NSImage(size: target, flipped: false) { rect in
+            image.draw(in: rect)
+            return true
+        }
+        thumbnails[entry.id] = thumbnail
+        return thumbnail
+    }
+
+    /// Copies the screenshot to a temporary file with a readable name for dragging out.
+    func exportScreenshot(_ entry: ScreenshotEntry) -> URL? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "yyyy-MM-dd 'в' HH.mm.ss"
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("BrowScreenshots", isDirectory: true)
+        let target = folder.appendingPathComponent("Снимок экрана \(formatter.string(from: entry.date)).png")
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try? FileManager.default.removeItem(at: target)
+            try FileManager.default.copyItem(at: entry.url(in: screenshotsDirectory), to: target)
+            return target
+        } catch {
+            logger.error("Exporting screenshot failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Drops entries whose PNG is gone and PNGs no entry refers to.
+    private func tidyScreenshots() {
+        let before = screenshots
+        screenshots.removeMissing(in: screenshotsDirectory)
+        if screenshots != before { persist(screenshots, to: screenshotsStore) }
+        let known = Set(screenshots.entries.map { $0.url(in: screenshotsDirectory).lastPathComponent })
+        let files = (try? FileManager.default.contentsOfDirectory(at: screenshotsDirectory, includingPropertiesForKeys: nil)) ?? []
+        for file in files where !known.contains(file.lastPathComponent) {
+            try? FileManager.default.removeItem(at: file)
+        }
     }
 
     func addToShelf(_ urls: [URL]) {
