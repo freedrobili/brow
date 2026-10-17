@@ -27,7 +27,10 @@ public enum MascotExpression: Equatable, Sendable {
 /// The mascot's mood. Time is passed in, so tests need no waiting.
 public struct MascotState: Equatable, Sendable {
     public static let reactionDuration: TimeInterval = 1
-    public static let wakingDuration: TimeInterval = 0.8
+    /// The wake-up scene: asleep while the panel unfolds, then eyes half open, then wide awake.
+    public static let wakingDuration: TimeInterval = 1.6
+    static let wakeAsleepUntil: TimeInterval = 0.6
+    static let wakeDrowsyUntil: TimeInterval = 0.9
     public static let drowsyAfter: TimeInterval = 15
     public static let asleepAfter: TimeInterval = 30
     /// Opening the panel after at least this long closed plays the wake-up.
@@ -36,11 +39,13 @@ public struct MascotState: Equatable, Sendable {
     public var isHovered = false
     private var lastActivity: Date
     private var reaction: MascotExpression?
+    private var reactionStarts: Date
     private var reactionEnds: Date
     private var closedAt: Date?
 
     public init(now: Date) {
         lastActivity = now
+        reactionStarts = now
         reactionEnds = now
     }
 
@@ -73,7 +78,13 @@ public struct MascotState: Equatable, Sendable {
     }
 
     public func expression(at now: Date) -> MascotExpression {
-        if let reaction, now < reactionEnds { return reaction }
+        if let reaction, now < reactionEnds {
+            guard reaction == .waking else { return reaction }
+            let elapsed = now.timeIntervalSince(reactionStarts)
+            if elapsed < Self.wakeAsleepUntil { return .asleep }
+            if elapsed < Self.wakeDrowsyUntil { return .drowsy }
+            return .waking
+        }
         let resting = now.timeIntervalSince(lastActivity)
         if resting >= Self.asleepAfter { return .asleep }
         if resting >= Self.drowsyAfter { return .drowsy }
@@ -83,6 +94,7 @@ public struct MascotState: Equatable, Sendable {
     /// A reaction also counts as activity, so it wakes the mascot up.
     private mutating func react(_ expression: MascotExpression, for duration: TimeInterval, now: Date) {
         reaction = expression
+        reactionStarts = now
         reactionEnds = now + duration
         lastActivity = now
     }

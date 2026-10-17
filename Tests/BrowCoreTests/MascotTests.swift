@@ -49,12 +49,15 @@ final class MascotStateTests: XCTestCase {
         XCTAssertEqual(m.expression(at: t0 + 42), .idle)
     }
 
-    func testOpeningAfterLongAbsenceWakesUp() {
+    func testOpeningAfterLongAbsencePlaysWakeUpScene() {
         var m = MascotState(now: t0)
         m.panelClosed(now: t0)
-        m.panelOpened(now: t0 + MascotState.wakeAfterAbsence)
-        XCTAssertEqual(m.expression(at: t0 + MascotState.wakeAfterAbsence + 0.1), .waking)
-        XCTAssertEqual(m.expression(at: t0 + MascotState.wakeAfterAbsence + 1), .idle)
+        let opened = t0 + MascotState.wakeAfterAbsence
+        m.panelOpened(now: opened)
+        XCTAssertEqual(m.expression(at: opened + 0.1), .asleep)    // still asleep while the panel unfolds
+        XCTAssertEqual(m.expression(at: opened + 0.75), .drowsy)   // eyes half open
+        XCTAssertEqual(m.expression(at: opened + 1.2), .waking)    // wide awake, brow up
+        XCTAssertEqual(m.expression(at: opened + MascotState.wakingDuration), .idle)
     }
 
     func testQuickReopenDoesNotWake() {

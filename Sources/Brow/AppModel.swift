@@ -126,10 +126,7 @@ final class AppModel {
     }
 
     func clipboardChanged(_ text: String, types: Set<String>) {
-        if clipboard.add(text, types: types) {
-            persist(clipboard, to: clipboardStore)
-            mascot.handle(.textCopied, now: .now)
-        }
+        if clipboard.add(text, types: types) { persist(clipboard, to: clipboardStore) }
     }
 
     /// Text dropped on the notch goes into the history without touching the pasteboard.
@@ -141,6 +138,7 @@ final class AppModel {
     /// Copies an entry back without reordering the list under the cursor.
     func copyFromHistory(_ entry: ClipboardEntry) {
         clipboardWatcher?.copy(entry.text)
+        mascot.handle(.textCopied, now: .now)   // the mascot sees it happen in the open panel
     }
 
     /// Removes entries from Brow's history only; the system pasteboard is left alone.
@@ -180,12 +178,12 @@ final class AppModel {
         }
         screenshots.add(entry).forEach(deleteScreenshotFile)
         persist(screenshots, to: screenshotsStore)
-        mascot.handle(.screenshotTaken, now: .now)
     }
 
     func copyScreenshot(_ entry: ScreenshotEntry) {
         guard let png = try? Data(contentsOf: entry.url(in: screenshotsDirectory)) else { return }
         clipboardWatcher?.copy(png: png)
+        mascot.handle(.screenshotTaken, now: .now)
     }
 
     /// A small cached copy for the tab; the originals are full screen size.
