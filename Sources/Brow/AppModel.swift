@@ -16,6 +16,9 @@ final class AppModel {
                 if expanded {
                     refreshShelf()
                     launchAtLogin = LoginItem.isEnabled   // may have changed in System Settings
+                    mascot.panelOpened(now: .now)
+                } else {
+                    mascot.panelClosed(now: .now)
                 }
                 onPanelExpandedChange?(expanded)
             }
@@ -23,6 +26,9 @@ final class AppModel {
     }
 
     var media: MediaStatus = .unavailable
+    var mascot = MascotState(now: .now)
+    /// Global cursor position, updated only while the panel is open (the mascot looks at it).
+    var cursor: CGPoint = .zero
     var launchAtLogin = false
     var clipboard: ClipboardHistory
     var shelf: ShelfStore
@@ -66,6 +72,21 @@ final class AppModel {
 
     func mouseMoved(to point: CGPoint) {
         updatePanel { $0.mouseMoved(to: point, now: .now) }
+        followCursor(point)
+    }
+
+    /// Feeds the mascot while it is visible; skipped when collapsed so global
+    /// mouse moves do not redraw anything.
+    private func followCursor(_ point: CGPoint) {
+        guard isExpanded, let geometry = panel?.geometry else { return }
+        cursor = point
+        mascot.cursorMoved(now: .now)
+        let hovered = geometry.mascotRect.insetBy(dx: -6, dy: -6).contains(point)
+        if mascot.isHovered != hovered { mascot.isHovered = hovered }
+    }
+
+    func mascotClicked() {
+        mascot.clicked(now: .now)
     }
 
     func fileDragMoved(to point: CGPoint) {
@@ -105,7 +126,10 @@ final class AppModel {
     }
 
     func clipboardChanged(_ text: String, types: Set<String>) {
-        if clipboard.add(text, types: types) { persist(clipboard, to: clipboardStore) }
+        if clipboard.add(text, types: types) {
+            persist(clipboard, to: clipboardStore)
+            mascot.handle(.textCopied, now: .now)
+        }
     }
 
     /// Text dropped on the notch goes into the history without touching the pasteboard.
@@ -156,6 +180,7 @@ final class AppModel {
         }
         screenshots.add(entry).forEach(deleteScreenshotFile)
         persist(screenshots, to: screenshotsStore)
+        mascot.handle(.screenshotTaken, now: .now)
     }
 
     func copyScreenshot(_ entry: ScreenshotEntry) {
@@ -218,6 +243,7 @@ final class AppModel {
         }
         persist(shelf, to: shelfStore)
         select(.shelf)
+        mascot.handle(.fileShelved, now: .now)
     }
 
     func removeFromShelf(_ id: UUID) {

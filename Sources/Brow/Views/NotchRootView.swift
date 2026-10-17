@@ -20,6 +20,14 @@ struct NotchRootView: View {
                 content
                     .padding(.top, notch.height)
                     .transition(.opacity)
+                if let geometry = model.panel?.geometry {
+                    // In the left "ear", peeking out from behind the notch.
+                    MascotView(model: model)
+                        .offset(x: geometry.mascotRect.minX - geometry.panelRect.minX,
+                                y: geometry.panelRect.maxY - geometry.mascotRect.maxY)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .transition(.opacity)
+                }
             }
         }
         .frame(width: size.width, height: size.height)
