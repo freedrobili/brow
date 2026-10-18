@@ -13,5 +13,6 @@ struct NotesView: View {
             .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
             .focused($focused)
             .onChange(of: focused) { model.setEditingNote(focused) }
+            .onDisappear { model.setEditingNote(false) }
     }
 }

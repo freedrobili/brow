@@ -107,4 +107,34 @@ final class PanelStateMachineTests: XCTestCase {
         m.mouseMoved(to: CGPoint(x: 100, y: 100), now: t0)
         XCTAssertEqual(m, before)
     }
+
+    func testLeavingNotesTabEndsEditingSoPanelCanCollapse() {
+        // Typing in the note, then switching tab: the note view goes away without
+        // reporting that editing ended, which kept the panel open for good.
+        m.mouseMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        m.select(.notes)
+        m.isEditingNote = true
+        m.select(.clipboard)
+        m.mouseMoved(to: CGPoint(x: 100, y: 100), now: t0)
+        m.tick(now: t0 + 1)
+        XCTAssertEqual(m.state, .collapsed)
+    }
+
+    func testSelectingNotesAgainKeepsEditingFlag() {
+        m.select(.notes)
+        m.isEditingNote = true
+        m.select(.notes)
+        XCTAssertTrue(m.isEditingNote)
+    }
+
+    func testDragSwitchingTabAlsoEndsNoteEditing() {
+        m.mouseMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        m.select(.notes)
+        m.isEditingNote = true
+        m.fileDragMoved(to: CGPoint(x: 756, y: 970), now: t0)   // opens the shelf
+        XCTAssertEqual(m.selectedTab, .shelf)
+        m.mouseMoved(to: CGPoint(x: 100, y: 100), now: t0)
+        m.tick(now: t0 + 1)
+        XCTAssertEqual(m.state, .collapsed)
+    }
 }
