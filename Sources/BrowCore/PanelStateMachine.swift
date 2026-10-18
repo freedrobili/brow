@@ -55,7 +55,7 @@ public struct PanelStateMachine: Equatable, Sendable {
     private mutating func dragMoved(to point: CGPoint, now: Date, opening tab: PanelTab) {
         mouseMoved(to: point, now: now)
         let target = state == .expanded ? geometry.panelRect : geometry.hoverRect
-        if target.containsIncludingEdges(point) { selectedTab = tab }
+        if target.containsIncludingEdges(point) { select(tab) }
     }
 
     public mutating func tick(now: Date) {
@@ -64,8 +64,11 @@ public struct PanelStateMachine: Equatable, Sendable {
         }
     }
 
+    /// Leaving the notes tab ends note editing: the note disappears without
+    /// reporting it, and a stale flag would keep the panel open for good.
     public mutating func select(_ tab: PanelTab) {
         selectedTab = tab
+        if tab != .notes { isEditingNote = false }
     }
 }
 
