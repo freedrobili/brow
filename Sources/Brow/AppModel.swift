@@ -16,6 +16,9 @@ final class AppModel {
                 if expanded {
                     refreshShelf()
                     launchAtLogin = LoginItem.isEnabled   // may have changed in System Settings
+                    mascot.panelOpened(now: .now)
+                } else {
+                    mascot.panelClosed(now: .now)
                 }
                 onPanelExpandedChange?(expanded)
             }
@@ -23,6 +26,9 @@ final class AppModel {
     }
 
     var media: MediaStatus = .unavailable
+    var mascot = MascotState(now: .now)
+    /// Global cursor position, updated only while the panel is open (the mascot looks at it).
+    var cursor: CGPoint = .zero
     var launchAtLogin = false
     var clipboard: ClipboardHistory
     var shelf: ShelfStore
@@ -66,6 +72,21 @@ final class AppModel {
 
     func mouseMoved(to point: CGPoint) {
         updatePanel { $0.mouseMoved(to: point, now: .now) }
+        followCursor(point)
+    }
+
+    /// Feeds the mascot while it is visible; skipped when collapsed so global
+    /// mouse moves do not redraw anything.
+    private func followCursor(_ point: CGPoint) {
+        guard isExpanded, let geometry = panel?.geometry else { return }
+        cursor = point
+        mascot.cursorMoved(now: .now)
+        let hovered = geometry.mascotRect.insetBy(dx: -6, dy: -6).contains(point)
+        if mascot.isHovered != hovered { mascot.isHovered = hovered }
+    }
+
+    func mascotClicked() {
+        mascot.clicked(now: .now)
     }
 
     func fileDragMoved(to point: CGPoint) {
@@ -117,6 +138,7 @@ final class AppModel {
     /// Copies an entry back without reordering the list under the cursor.
     func copyFromHistory(_ entry: ClipboardEntry) {
         clipboardWatcher?.copy(entry.text)
+        mascot.handle(.textCopied, now: .now)   // the mascot sees it happen in the open panel
     }
 
     /// Removes entries from Brow's history only; the system pasteboard is left alone.
@@ -161,6 +183,7 @@ final class AppModel {
     func copyScreenshot(_ entry: ScreenshotEntry) {
         guard let png = try? Data(contentsOf: entry.url(in: screenshotsDirectory)) else { return }
         clipboardWatcher?.copy(png: png)
+        mascot.handle(.screenshotTaken, now: .now)
     }
 
     /// A small cached copy for the tab; the originals are full screen size.
@@ -218,6 +241,7 @@ final class AppModel {
         }
         persist(shelf, to: shelfStore)
         select(.shelf)
+        mascot.handle(.fileShelved, now: .now)
     }
 
     func removeFromShelf(_ id: UUID) {
