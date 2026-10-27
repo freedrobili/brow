@@ -9,8 +9,33 @@ final class PanelStateMachineTests: XCTestCase {
         m = PanelStateMachine(geometry: NotchGeometry(screen: mbp14)!)
     }
 
-    func testHoverInNotchExpands() {
+    /// Hovers the notch long enough to open the panel, finishing exactly at `t0`.
+    func openPanel() {
+        m.mouseMoved(to: CGPoint(x: 756, y: 970), now: t0 - PanelStateMachine.hoverDelay)
+        m.tick(now: t0)
+        XCTAssertEqual(m.state, .expanded)
+    }
+
+    func testHoverInNotchOpensAfterShortDwell() {
         m.mouseMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        XCTAssertFalse(m.isExpanded)
+        m.tick(now: t0 + PanelStateMachine.hoverDelay - 0.01)
+        XCTAssertFalse(m.isExpanded)
+        m.tick(now: t0 + PanelStateMachine.hoverDelay)
+        XCTAssertEqual(m.state, .expanded)
+    }
+
+    func testPassingThroughNotchDoesNotOpen() {
+        m.mouseMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        m.mouseMoved(to: CGPoint(x: 900, y: 900), now: t0 + 0.1)   // left before the dwell
+        m.tick(now: t0 + 1)
+        XCTAssertEqual(m.state, .collapsed)
+    }
+
+    func testMovingWithinNotchKeepsTheDwellRunning() {
+        m.mouseMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        m.mouseMoved(to: CGPoint(x: 760, y: 965), now: t0 + 0.1)
+        m.tick(now: t0 + PanelStateMachine.hoverDelay)
         XCTAssertEqual(m.state, .expanded)
     }
 
@@ -28,6 +53,7 @@ final class PanelStateMachineTests: XCTestCase {
 
     func testJustInsideNotchSideExpands() {
         m.mouseMoved(to: CGPoint(x: 668, y: 970), now: t0)   // 4.5 pt in from the left edge
+        m.tick(now: t0 + PanelStateMachine.hoverDelay)
         XCTAssertEqual(m.state, .expanded)
     }
 
@@ -37,7 +63,7 @@ final class PanelStateMachineTests: XCTestCase {
     }
 
     func testLeavingCollapsesAfterDelay() {
-        m.mouseMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        openPanel()
         m.mouseMoved(to: CGPoint(x: 100, y: 100), now: t0)
         XCTAssertEqual(m.state, .collapsing(deadline: t0 + 0.3))
         m.tick(now: t0 + 0.29)
@@ -47,7 +73,7 @@ final class PanelStateMachineTests: XCTestCase {
     }
 
     func testReturnBeforeDeadlineCancels() {
-        m.mouseMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        openPanel()
         m.mouseMoved(to: CGPoint(x: 100, y: 100), now: t0)
         m.mouseMoved(to: CGPoint(x: 756, y: 850), now: t0 + 0.1)
         m.tick(now: t0 + 1)
@@ -55,7 +81,7 @@ final class PanelStateMachineTests: XCTestCase {
     }
 
     func testEditingNotePreventsCollapse() {
-        m.mouseMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        openPanel()
         m.isEditingNote = true
         m.mouseMoved(to: CGPoint(x: 100, y: 100), now: t0)
         m.tick(now: t0 + 1)
@@ -63,7 +89,7 @@ final class PanelStateMachineTests: XCTestCase {
     }
 
     func testEditingStartedWhileCollapsingBlocksTick() {
-        m.mouseMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        openPanel()
         m.mouseMoved(to: CGPoint(x: 100, y: 100), now: t0)
         m.isEditingNote = true
         m.tick(now: t0 + 1)
@@ -97,6 +123,7 @@ final class PanelStateMachineTests: XCTestCase {
 
     func testTopEdgeOfScreenCountsAsInside() {
         m.mouseMoved(to: CGPoint(x: 756, y: 982), now: t0)   // y == frame.maxY
+        m.tick(now: t0 + PanelStateMachine.hoverDelay)
         XCTAssertEqual(m.state, .expanded)
         m.mouseMoved(to: CGPoint(x: 756, y: 982), now: t0)
         XCTAssertEqual(m.state, .expanded)
@@ -111,7 +138,7 @@ final class PanelStateMachineTests: XCTestCase {
     func testLeavingNotesTabEndsEditingSoPanelCanCollapse() {
         // Typing in the note, then switching tab: the note view goes away without
         // reporting that editing ended, which kept the panel open for good.
-        m.mouseMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        openPanel()
         m.select(.notes)
         m.isEditingNote = true
         m.select(.clipboard)
@@ -128,7 +155,7 @@ final class PanelStateMachineTests: XCTestCase {
     }
 
     func testDragSwitchingTabAlsoEndsNoteEditing() {
-        m.mouseMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        openPanel()
         m.select(.notes)
         m.isEditingNote = true
         m.fileDragMoved(to: CGPoint(x: 756, y: 970), now: t0)   // opens the shelf

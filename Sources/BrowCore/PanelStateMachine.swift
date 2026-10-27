@@ -7,6 +7,9 @@ public enum PanelTab: String, Codable, Sendable, CaseIterable {
 
 public enum PanelState: Equatable, Sendable {
     case collapsed
+    /// The cursor is in the notch; still drawn collapsed, opens on the first
+    /// `tick` at or after `deadline` unless the cursor leaves first.
+    case opening(deadline: Date)
     case expanded
     /// Still drawn expanded; becomes `.collapsed` on the first `tick` at or after `deadline`.
     case collapsing(deadline: Date)
@@ -15,6 +18,9 @@ public enum PanelState: Equatable, Sendable {
 /// Decides when the notch panel opens and closes. Time is passed in, so tests need no waiting.
 public struct PanelStateMachine: Equatable, Sendable {
     public static let collapseDelay: TimeInterval = 0.3
+    /// How long the cursor has to stay in the notch before the panel opens, so
+    /// sweeping past the notch does not open it by accident.
+    public static let hoverDelay: TimeInterval = 0.2
 
     public var geometry: NotchGeometry {
         didSet { state = .collapsed }
@@ -23,7 +29,12 @@ public struct PanelStateMachine: Equatable, Sendable {
     public private(set) var selectedTab: PanelTab = .shelf
     public var isEditingNote = false
 
-    public var isExpanded: Bool { state != .collapsed }
+    public var isExpanded: Bool {
+        switch state {
+        case .expanded, .collapsing: true
+        case .collapsed, .opening: false
+        }
+    }
 
     public init(geometry: NotchGeometry) {
         self.geometry = geometry
@@ -32,7 +43,11 @@ public struct PanelStateMachine: Equatable, Sendable {
     public mutating func mouseMoved(to point: CGPoint, now: Date) {
         switch state {
         case .collapsed:
-            if geometry.hoverRect.containsIncludingEdges(point) { state = .expanded }
+            if geometry.hoverRect.containsIncludingEdges(point) {
+                state = .opening(deadline: now + Self.hoverDelay)
+            }
+        case .opening:
+            if !geometry.hoverRect.containsIncludingEdges(point) { state = .collapsed }
         case .expanded:
             if !geometry.panelRect.containsIncludingEdges(point) && !isEditingNote {
                 state = .collapsing(deadline: now + Self.collapseDelay)
@@ -52,15 +67,25 @@ public struct PanelStateMachine: Equatable, Sendable {
         dragMoved(to: point, now: now, opening: .clipboard)
     }
 
+    /// Dragging something to the notch is always deliberate, so it opens at once.
     private mutating func dragMoved(to point: CGPoint, now: Date, opening tab: PanelTab) {
-        mouseMoved(to: point, now: now)
+        if !isExpanded && geometry.hoverRect.containsIncludingEdges(point) {
+            state = .expanded
+        } else {
+            mouseMoved(to: point, now: now)
+        }
         let target = state == .expanded ? geometry.panelRect : geometry.hoverRect
         if target.containsIncludingEdges(point) { select(tab) }
     }
 
     public mutating func tick(now: Date) {
-        if case .collapsing(let deadline) = state, now >= deadline, !isEditingNote {
+        switch state {
+        case .opening(let deadline) where now >= deadline:
+            state = .expanded
+        case .collapsing(let deadline) where now >= deadline && !isEditingNote:
             state = .collapsed
+        default:
+            break
         }
     }
 

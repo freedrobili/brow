@@ -271,9 +271,14 @@ final class AppModel {
         }
     }
 
-    /// Wakes up at the collapse deadline so the panel closes even if the mouse stops moving.
+    /// Wakes up at the open or collapse deadline, so the panel reacts even if the
+    /// mouse stops moving.
     private func scheduleTick() {
-        guard case .collapsing(let deadline)? = panel?.state else { return }
+        let deadline: Date
+        switch panel?.state {
+        case .opening(let date)?, .collapsing(let date)?: deadline = date
+        default: return
+        }
         tickTask?.cancel()
         tickTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow)))
