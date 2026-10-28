@@ -26,6 +26,15 @@ final class AppModel {
     }
 
     var media: MediaStatus = .unavailable
+    /// Look up covers for browser music online (iTunes Search API); on by default.
+    var coverLookupEnabled = UserDefaults.standard.object(forKey: "coverLookupEnabled") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(coverLookupEnabled, forKey: "coverLookupEnabled")
+            if let lastMediaStatus { mediaStatusChanged(lastMediaStatus) }
+        }
+    }
+    @ObservationIgnored private let covers = CoverFetcher()
+    @ObservationIgnored private var lastMediaStatus: MediaStatus?
     var mascot = MascotState(now: .now)
     /// Global cursor position, updated only while the panel is open (the mascot looks at it).
     var cursor: CGPoint = .zero
@@ -132,6 +141,28 @@ final class AppModel {
     func setLaunchAtLogin(_ enabled: Bool) {
         LoginItem.setEnabled(enabled)
         launchAtLogin = LoginItem.isEnabled
+    }
+
+    /// Browsers pass title and artist but not the site's cover (Chromium sends its
+    /// own icon), so their placeholder is dropped and the cover looked up instead.
+    func mediaStatusChanged(_ status: MediaStatus) {
+        lastMediaStatus = status
+        guard case .playing(var nowPlaying) = status else {
+            media = status
+            return
+        }
+        if CoverLookup.sendsPlaceholderArtwork(nowPlaying.bundleId) { nowPlaying.artwork = nil }
+        if coverLookupEnabled, CoverLookup.isBrowser(nowPlaying.bundleId) {
+            if let cover = covers.cover(artist: nowPlaying.artist, title: nowPlaying.title) {
+                nowPlaying.artwork = cover
+            } else {
+                covers.lookUp(artist: nowPlaying.artist, title: nowPlaying.title) { [weak self] in
+                    guard let self, let latest = self.lastMediaStatus else { return }
+                    self.mediaStatusChanged(latest)   // re-applies the now cached cover if still playing
+                }
+            }
+        }
+        media = .playing(nowPlaying)
     }
 
     func sendMedia(_ command: MediaCommand) {

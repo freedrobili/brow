@@ -49,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return   // not running from Brow.app: music stays "unavailable"
         }
         let controller = MediaController(scriptURL: script, libraryURL: library) { [model] status in
-            model.media = status
+            model.mediaStatusChanged(status)
         }
         model.mediaController = controller
         controller.start()

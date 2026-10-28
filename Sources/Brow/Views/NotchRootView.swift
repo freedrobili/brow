@@ -57,6 +57,9 @@ struct NotchRootView: View {
             Toggle("Запускать при входе в систему", isOn: Binding(
                 get: { model.launchAtLogin },
                 set: { model.setLaunchAtLogin($0) }))
+            Toggle("Искать обложки в интернете", isOn: Binding(
+                get: { model.coverLookupEnabled },
+                set: { model.coverLookupEnabled = $0 }))
             if model.updater != nil {
                 Toggle("Обновлять автоматически", isOn: Binding(
                     get: { model.autoUpdate },
