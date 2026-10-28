@@ -30,6 +30,10 @@ final class AppModel {
     /// Global cursor position, updated only while the panel is open (the mascot looks at it).
     var cursor: CGPoint = .zero
     var launchAtLogin = false
+    /// Mirrors the updater's "install automatically" setting for the menu toggle.
+    var autoUpdate = false
+    /// nil for development builds, which never update themselves.
+    @ObservationIgnored var updater: Updater?
     var clipboard: ClipboardHistory
     var shelf: ShelfStore
     var screenshots: ScreenshotHistory
@@ -114,6 +118,15 @@ final class AppModel {
     func setEditingNote(_ editing: Bool) {
         panel?.isEditingNote = editing
         if !editing { mouseMoved(to: NSEvent.mouseLocation) }
+    }
+
+    func checkForUpdates() {
+        updater?.checkForUpdates()
+    }
+
+    func setAutoUpdate(_ enabled: Bool) {
+        updater?.automaticallyInstallsUpdates = enabled
+        autoUpdate = updater?.automaticallyInstallsUpdates ?? false
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
