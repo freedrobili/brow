@@ -57,6 +57,12 @@ struct NotchRootView: View {
             Toggle("Запускать при входе в систему", isOn: Binding(
                 get: { model.launchAtLogin },
                 set: { model.setLaunchAtLogin($0) }))
+            if model.updater != nil {
+                Toggle("Обновлять автоматически", isOn: Binding(
+                    get: { model.autoUpdate },
+                    set: { model.setAutoUpdate($0) }))
+                Button("Проверить обновления…") { model.checkForUpdates() }
+            }
             Divider()
             Button("Выйти из Brow") { NSApp.terminate(nil) }
         }

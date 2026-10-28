@@ -1,4 +1,5 @@
 import AppKit
+import BrowCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -23,6 +24,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mouseTracker = tracker
         startMedia()
         LoginItem.autoEnableIfNeeded()
+        if UpdatePolicy.shouldCheckForUpdates(bundlePath: Bundle.main.bundlePath) {
+            let updater = Updater()
+            model.updater = updater
+            model.autoUpdate = updater.automaticallyInstallsUpdates
+        }
         model.launchAtLogin = LoginItem.isEnabled
         let watcher = ClipboardWatcher(
             onText: { [model] text, types in model.clipboardChanged(text, types: types) },
