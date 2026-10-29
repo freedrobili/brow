@@ -4,16 +4,23 @@ import Foundation
 /// macOS (Chrome sends its own icon for Spotify, see `PlaceholderArtwork`), so
 /// the cover is looked up in the public iTunes Search API.
 public enum CoverLookup {
-    private static let browsers: Set<String> = [
-        "com.apple.Safari", "com.apple.SafariTechnologyPreview", "org.mozilla.firefox",
-        "com.google.Chrome", "com.google.Chrome.canary", "com.google.Chrome.beta",
-        "company.thebrowser.Browser", "com.microsoft.edgemac", "com.brave.Browser",
-        "ru.yandex.desktop.yandex-browser", "com.operasoftware.Opera", "com.vivaldi.Vivaldi",
-        "org.chromium.Chromium",
+    /// Browsers and their betas, nightlies and installed web apps
+    /// (`com.google.Chrome.app.…`, `com.apple.Safari.WebApp.…`): the id itself or the id plus ".…".
+    private static let browsers: [String] = [
+        "com.apple.Safari", "com.apple.SafariTechnologyPreview", "com.google.Chrome",
+        "com.microsoft.edgemac", "ru.yandex.desktop.yandex-browser", "com.kagi.kagimacOS",
+        "com.duckduckgo.macos.browser",
+    ]
+    /// Vendors that make only browsers: any of their apps counts (Opera GX, Firefox Developer Edition, Arc, Dia).
+    private static let browserVendors: [String] = [
+        "org.mozilla.", "com.operasoftware.", "company.thebrowser.", "com.brave.", "com.vivaldi.",
+        "org.chromium.", "app.zen-browser.",
     ]
 
     public static func isBrowser(_ bundleId: String?) -> Bool {
-        bundleId.map(browsers.contains) ?? false
+        guard let bundleId else { return false }
+        return browsers.contains { bundleId == $0 || bundleId.hasPrefix($0 + ".") }
+            || browserVendors.contains { bundleId.hasPrefix($0) }
     }
 
     /// iTunes Search API query for a song; nil without a title.

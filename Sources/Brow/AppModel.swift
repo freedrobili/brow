@@ -86,7 +86,10 @@ final class AppModel {
         shelfStore = JSONFileStore(directory: directory, name: "shelf")
         screenshotsStore = JSONFileStore(directory: directory, name: "screenshots")
         linksStore = JSONFileStore(directory: directory, name: "links")
-        placeholderStore = JSONFileStore(directory: directory, name: "artwork-placeholders")
+        // v2: the old rule took every album's cover for a placeholder once two of its
+        // tracks played, so what it learned is dropped and learned again.
+        try? FileManager.default.removeItem(at: directory.appendingPathComponent("artwork-placeholders.json"))
+        placeholderStore = JSONFileStore(directory: directory, name: "artwork-placeholders-v2")
         placeholderArtwork = placeholderStore.load() ?? PlaceholderArtwork()
         screenshotsDirectory = directory.appendingPathComponent("Screenshots", isDirectory: true)
         notes = NotesStore(store: JSONFileStore(directory: directory, name: "notes"))
@@ -172,8 +175,10 @@ final class AppModel {
             media = status
             return
         }
+        // Artwork that cannot be drawn (broken data, a 1×1 pixel) counts as none, so a cover is looked up.
+        if let artwork = nowPlaying.artwork, !Self.isDrawable(artwork) { nowPlaying.artwork = nil }
         guard CoverLookup.isBrowser(nowPlaying.bundleId) else {
-            media = status
+            media = .playing(nowPlaying)
             return
         }
         if let artwork = nowPlaying.artwork {
@@ -181,7 +186,7 @@ final class AppModel {
             if placeholderArtwork.isPlaceholder(fingerprint) {
                 nowPlaying.artwork = nil
             } else {
-                learnWhenSettled(artwork: fingerprint, title: nowPlaying.title)
+                learnWhenSettled(artwork: fingerprint, title: nowPlaying.title, album: nowPlaying.album)
             }
         }
         if nowPlaying.artwork == nil, coverLookupEnabled {
@@ -199,15 +204,20 @@ final class AppModel {
 
     /// On a track change Chrome briefly pairs the new title with the previous
     /// artwork, so only pairs that last a second count as evidence.
-    private func learnWhenSettled(artwork: String, title: String) {
+    private func learnWhenSettled(artwork: String, title: String, album: String) {
         settleTask?.cancel()
         settleTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled, let self else { return }
-            guard self.placeholderArtwork.observe(artwork: artwork, title: title) else { return }
+            guard self.placeholderArtwork.observe(artwork: artwork, title: title, album: album) else { return }
             self.persist(self.placeholderArtwork, to: self.placeholderStore)
             if let latest = self.lastMediaStatus { self.mediaStatusChanged(latest) }   // drop it now
         }
+    }
+
+    private static func isDrawable(_ data: Data) -> Bool {
+        guard let image = NSImage(data: data), image.isValid else { return false }
+        return image.size.width > 1 && image.size.height > 1
     }
 
     private static func fingerprint(_ data: Data) -> String {
