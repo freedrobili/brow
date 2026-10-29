@@ -5,8 +5,17 @@ import SwiftUI
 /// Now playing row: artwork, title, progress and transport buttons.
 struct MusicView: View {
     let model: AppModel
-    /// Slider value while the user drags it; cleared when fresh status arrives.
-    @State private var scrubPosition: TimeInterval?
+    /// Where the user put the knob: held while dragging, and after the seek until
+    /// fresh status arrives, for at most `seekGrace` (some browsers report it late or never).
+    @State private var scrub: Scrub?
+
+    private struct Scrub {
+        var position: TimeInterval
+        /// When the drag ended; nil while dragging.
+        var released: Date?
+    }
+
+    private static let seekGrace: TimeInterval = 3
 
     var body: some View {
         HStack(spacing: 12) {
@@ -28,7 +37,9 @@ struct MusicView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             controls
         }
-        .onChange(of: model.media) { scrubPosition = nil }
+        .onChange(of: model.media) {
+            if scrub?.released != nil { scrub = nil }   // a drag in progress keeps its knob
+        }
     }
 
     private var title: String {
@@ -50,7 +61,7 @@ struct MusicView: View {
 
     @ViewBuilder private var artwork: some View {
         if case .playing(let nowPlaying) = model.media,
-           let data = nowPlaying.artwork, let image = NSImage(data: data) {
+           let data = nowPlaying.artwork, let image = NSImage(data: data), image.isValid {
             Image(nsImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
@@ -66,21 +77,27 @@ struct MusicView: View {
 
     private func progress(_ nowPlaying: NowPlaying, duration: TimeInterval) -> some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            let position = scrubPosition ?? nowPlaying.position(at: context.date) ?? 0
+            let position = min(displayedPosition(nowPlaying, at: context.date), duration)
             HStack(spacing: 6) {
-                Slider(value: Binding(get: { position }, set: { scrubPosition = $0 }),
-                       in: 0...duration,
-                       onEditingChanged: { editing in
-                           if !editing, let target = scrubPosition { model.sendMedia(.seek(target)) }
-                       })
-                    .controlSize(.mini)
-                    .tint(.white)
+                ProgressScrubber(position: position, duration: duration) { target, ended in
+                    scrub = Scrub(position: target, released: ended ? .now : nil)
+                    if ended { model.sendMedia(.seek(target)) }
+                }
                 Text("\(Self.format(position)) / \(Self.format(duration))")
                     .font(.system(size: 10).monospacedDigit())
                     .foregroundStyle(.white.opacity(0.6))
                     .fixedSize()
             }
         }
+    }
+
+    private func displayedPosition(_ nowPlaying: NowPlaying, at date: Date) -> TimeInterval {
+        if let scrub {
+            guard let released = scrub.released else { return scrub.position }
+            let sinceSeek = date.timeIntervalSince(released)
+            if sinceSeek < Self.seekGrace { return scrub.position + (nowPlaying.isPlaying ? sinceSeek : 0) }
+        }
+        return nowPlaying.position(at: date) ?? 0
     }
 
     private var controls: some View {
@@ -104,7 +121,7 @@ struct MusicView: View {
         .buttonStyle(.plain)
     }
 
-    private static func format(_ seconds: TimeInterval) -> String {
+    static func format(_ seconds: TimeInterval) -> String {
         let total = Int(seconds.rounded(.down))
         let (hours, minutes, secs) = (total / 3600, total % 3600 / 60, total % 60)
         return hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, secs)

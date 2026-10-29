@@ -10,6 +10,27 @@ final class CoverLookupTests: XCTestCase {
         XCTAssertFalse(CoverLookup.isBrowser(nil))
     }
 
+    func testBrowserVariantsAndWebAppsAreRecognised() {
+        XCTAssertTrue(CoverLookup.isBrowser("com.google.Chrome.app.cinhimbnkkaeohfgghhklpknlkffjgod"))   // YouTube Music app from Chrome
+        XCTAssertTrue(CoverLookup.isBrowser("com.apple.Safari.WebApp.3F1C2D4E-0000-4000-8000-000000000000"))   // web app from Safari
+        XCTAssertTrue(CoverLookup.isBrowser("com.apple.SafariTechnologyPreview"))
+        XCTAssertTrue(CoverLookup.isBrowser("com.microsoft.edgemac.Beta"))
+        XCTAssertTrue(CoverLookup.isBrowser("com.microsoft.edgemac.app.abcdef"))
+        XCTAssertTrue(CoverLookup.isBrowser("org.mozilla.firefoxdeveloperedition"))
+        XCTAssertTrue(CoverLookup.isBrowser("com.operasoftware.OperaGX"))
+        XCTAssertTrue(CoverLookup.isBrowser("com.brave.Browser.nightly"))
+        XCTAssertTrue(CoverLookup.isBrowser("company.thebrowser.dia"))
+        XCTAssertTrue(CoverLookup.isBrowser("app.zen-browser.zen"))
+        XCTAssertTrue(CoverLookup.isBrowser("com.kagi.kagimacOS"))
+        XCTAssertTrue(CoverLookup.isBrowser("com.duckduckgo.macos.browser"))
+    }
+
+    func testOnlyWholeBundleIdPartsMatch() {
+        XCTAssertFalse(CoverLookup.isBrowser("com.google.Chromecast"))
+        XCTAssertFalse(CoverLookup.isBrowser("com.apple.Music"))
+        XCTAssertFalse(CoverLookup.isBrowser("ru.yandex.desktop.music"))
+    }
+
 
     func testSearchURL() throws {
         let url = try XCTUnwrap(CoverLookup.searchURL(artist: "Егор Крид", title: "Таро", country: "RU"))
