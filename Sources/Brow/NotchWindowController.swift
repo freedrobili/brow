@@ -14,6 +14,7 @@ final class NotchWindowController {
         let hostingView = NSHostingView(rootView: NotchRootView(model: model))
         hostingView.sizingOptions = []
         panel.contentView = hostingView
+        model.focusPanel = { [weak self] in self?.panel.makeKey() }
         model.onPanelExpandedChange = { [weak self] expanded in
             self?.panelExpandedChanged(expanded)
         }

@@ -18,7 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let tracker = MouseTracker(
             onMove: { [model] point in model.mouseMoved(to: point) },
             onFileDrag: { [model] point in model.fileDragMoved(to: point) },
-            onTextDrag: { [model] point in model.textDragMoved(to: point) }
+            onTextDrag: { [model] point in model.textDragMoved(to: point) },
+            onLinkDrag: { [model] point in model.linkDragMoved(to: point) }
         )
         tracker.start()
         mouseTracker = tracker
@@ -36,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         watcher.start()
         model.clipboardWatcher = watcher
+        model.pasteboardLink = NSPasteboard.general.string(forType: .string).flatMap(WebLink.parse)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -49,7 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return   // not running from Brow.app: music stays "unavailable"
         }
         let controller = MediaController(scriptURL: script, libraryURL: library) { [model] status in
-            model.media = status
+            model.mediaStatusChanged(status)
         }
         model.mediaController = controller
         controller.start()

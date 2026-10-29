@@ -8,15 +8,18 @@ final class MouseTracker {
     private let onMove: (CGPoint) -> Void
     private let onFileDrag: (CGPoint) -> Void
     private let onTextDrag: (CGPoint) -> Void
+    private let onLinkDrag: (CGPoint) -> Void
     private var monitors: [Any] = []
     private var dragChangeCountAtMouseDown = 0
 
     init(onMove: @escaping (CGPoint) -> Void,
          onFileDrag: @escaping (CGPoint) -> Void,
-         onTextDrag: @escaping (CGPoint) -> Void) {
+         onTextDrag: @escaping (CGPoint) -> Void,
+         onLinkDrag: @escaping (CGPoint) -> Void) {
         self.onMove = onMove
         self.onFileDrag = onFileDrag
         self.onTextDrag = onTextDrag
+        self.onLinkDrag = onLinkDrag
     }
 
     func start() {
@@ -50,6 +53,8 @@ final class MouseTracker {
             let types = drag.types ?? []
             if types.contains(.fileURL) {
                 onFileDrag(point)
+            } else if types.contains(.URL) {
+                onLinkDrag(point)
             } else if types.contains(.string) {
                 onTextDrag(point)
             } else {

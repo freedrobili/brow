@@ -1,5 +1,6 @@
 import AppKit
 import BrowCore
+import CryptoKit
 import Observation
 import os
 
@@ -16,6 +17,7 @@ final class AppModel {
                 if expanded {
                     refreshShelf()
                     launchAtLogin = LoginItem.isEnabled   // may have changed in System Settings
+                    refreshLinkInfo()
                     mascot.panelOpened(now: .now)
                 } else {
                     mascot.panelClosed(now: .now)
@@ -26,6 +28,18 @@ final class AppModel {
     }
 
     var media: MediaStatus = .unavailable
+    /// Look up covers for browser music online (iTunes Search API); on by default.
+    var coverLookupEnabled = UserDefaults.standard.object(forKey: "coverLookupEnabled") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(coverLookupEnabled, forKey: "coverLookupEnabled")
+            if let lastMediaStatus { mediaStatusChanged(lastMediaStatus) }
+        }
+    }
+    @ObservationIgnored private let covers = CoverFetcher()
+    @ObservationIgnored private var lastMediaStatus: MediaStatus?
+    @ObservationIgnored private var placeholderArtwork: PlaceholderArtwork
+    @ObservationIgnored private let placeholderStore: JSONFileStore<PlaceholderArtwork>
+    @ObservationIgnored private var settleTask: Task<Void, Never>?
     var mascot = MascotState(now: .now)
     /// Global cursor position, updated only while the panel is open (the mascot looks at it).
     var cursor: CGPoint = .zero
@@ -37,6 +51,9 @@ final class AppModel {
     var clipboard: ClipboardHistory
     var shelf: ShelfStore
     var screenshots: ScreenshotHistory
+    var links: LinkStore
+    /// The web link currently on the pasteboard, for the «+ из буфера» button.
+    var pasteboardLink: URL?
     var noteText: String {
         didSet { notes.update(noteText) }
     }
@@ -45,6 +62,10 @@ final class AppModel {
     @ObservationIgnored private let clipboardStore: JSONFileStore<ClipboardHistory>
     @ObservationIgnored private let shelfStore: JSONFileStore<ShelfStore>
     @ObservationIgnored private let screenshotsStore: JSONFileStore<ScreenshotHistory>
+    @ObservationIgnored private let linksStore: JSONFileStore<LinkStore>
+    @ObservationIgnored private let linkInfo = LinkInfoFetcher()
+    /// Makes the panel take keyboard input (set by the window controller).
+    @ObservationIgnored var focusPanel: (() -> Void)?
     /// PNG files of `screenshots`, one per entry.
     @ObservationIgnored let screenshotsDirectory: URL
     @ObservationIgnored private var thumbnails: [UUID: NSImage] = [:]
@@ -64,11 +85,15 @@ final class AppModel {
         clipboardStore = JSONFileStore(directory: directory, name: "clipboard")
         shelfStore = JSONFileStore(directory: directory, name: "shelf")
         screenshotsStore = JSONFileStore(directory: directory, name: "screenshots")
+        linksStore = JSONFileStore(directory: directory, name: "links")
+        placeholderStore = JSONFileStore(directory: directory, name: "artwork-placeholders")
+        placeholderArtwork = placeholderStore.load() ?? PlaceholderArtwork()
         screenshotsDirectory = directory.appendingPathComponent("Screenshots", isDirectory: true)
         notes = NotesStore(store: JSONFileStore(directory: directory, name: "notes"))
         clipboard = clipboardStore.load() ?? ClipboardHistory()
         shelf = shelfStore.load() ?? ShelfStore()
         screenshots = screenshotsStore.load() ?? ScreenshotHistory()
+        links = linksStore.load() ?? LinkStore()
         noteText = notes.text
         refreshShelf()
         tidyScreenshots()
@@ -95,6 +120,10 @@ final class AppModel {
 
     func fileDragMoved(to point: CGPoint) {
         updatePanel { $0.fileDragMoved(to: point, now: .now) }
+    }
+
+    func linkDragMoved(to point: CGPoint) {
+        updatePanel { $0.linkDragMoved(to: point, now: .now) }
     }
 
     func textDragMoved(to point: CGPoint) {
@@ -134,11 +163,113 @@ final class AppModel {
         launchAtLogin = LoginItem.isEnabled
     }
 
+    /// Browser music keeps real artwork (VK video frames) but drops the browser's
+    /// own icon, learned by `PlaceholderArtwork`; without a usable cover, the cover
+    /// is looked up online.
+    func mediaStatusChanged(_ status: MediaStatus) {
+        lastMediaStatus = status
+        guard case .playing(var nowPlaying) = status else {
+            media = status
+            return
+        }
+        guard CoverLookup.isBrowser(nowPlaying.bundleId) else {
+            media = status
+            return
+        }
+        if let artwork = nowPlaying.artwork {
+            let fingerprint = Self.fingerprint(artwork)
+            if placeholderArtwork.isPlaceholder(fingerprint) {
+                nowPlaying.artwork = nil
+            } else {
+                learnWhenSettled(artwork: fingerprint, title: nowPlaying.title)
+            }
+        }
+        if nowPlaying.artwork == nil, coverLookupEnabled {
+            if let cover = covers.cover(artist: nowPlaying.artist, title: nowPlaying.title) {
+                nowPlaying.artwork = cover
+            } else {
+                covers.lookUp(artist: nowPlaying.artist, title: nowPlaying.title) { [weak self] in
+                    guard let self, let latest = self.lastMediaStatus else { return }
+                    self.mediaStatusChanged(latest)   // re-applies the now cached cover if still playing
+                }
+            }
+        }
+        media = .playing(nowPlaying)
+    }
+
+    /// On a track change Chrome briefly pairs the new title with the previous
+    /// artwork, so only pairs that last a second count as evidence.
+    private func learnWhenSettled(artwork: String, title: String) {
+        settleTask?.cancel()
+        settleTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, let self else { return }
+            guard self.placeholderArtwork.observe(artwork: artwork, title: title) else { return }
+            self.persist(self.placeholderArtwork, to: self.placeholderStore)
+            if let latest = self.lastMediaStatus { self.mediaStatusChanged(latest) }   // drop it now
+        }
+    }
+
+    private static func fingerprint(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
     func sendMedia(_ command: MediaCommand) {
         mediaController?.send(command)
     }
 
+    // MARK: Links
+
+    func addLink(_ url: URL) {
+        let id = links.add(url)
+        persist(links, to: linksStore)
+        select(.links)
+        mascot.handle(.linkSaved, now: .now)
+        if let link = links.links.first(where: { $0.id == id }), link.pageTitle == nil { fetchInfo(for: link) }
+    }
+
+    func addLinkFromPasteboard() {
+        if let pasteboardLink { addLink(pasteboardLink) }
+    }
+
+    func openLink(_ link: SavedLink) {
+        NSWorkspace.shared.open(link.url)
+    }
+
+    func copyLink(_ link: SavedLink) {
+        clipboardWatcher?.copy(link.url.absoluteString)
+    }
+
+    func renameLink(_ id: UUID, to name: String) {
+        links.rename(id: id, to: name)
+        persist(links, to: linksStore)
+    }
+
+    func removeLink(_ id: UUID) {
+        links.remove(id: id)
+        persist(links, to: linksStore)
+    }
+
+    func clearLinks() {
+        links.removeAll()
+        persist(links, to: linksStore)
+    }
+
+    /// Retries pages whose title could not be fetched yet (e.g. offline).
+    private func refreshLinkInfo() {
+        links.linksNeedingPageInfo.forEach(fetchInfo)
+    }
+
+    private func fetchInfo(for link: SavedLink) {
+        linkInfo.fetch(link) { [weak self] title, icon in
+            guard let self else { return }
+            self.links.setPageInfo(id: link.id, title: title ?? link.address, icon: icon)
+            self.persist(self.links, to: self.linksStore)
+        }
+    }
+
     func clipboardChanged(_ text: String, types: Set<String>) {
+        if types.isDisjoint(with: ClipboardHistory.ignoredTypes) { pasteboardLink = WebLink.parse(text) }
         if clipboard.add(text, types: types) { persist(clipboard, to: clipboardStore) }
     }
 
@@ -151,6 +282,7 @@ final class AppModel {
     /// Copies an entry back without reordering the list under the cursor.
     func copyFromHistory(_ entry: ClipboardEntry) {
         clipboardWatcher?.copy(entry.text)
+        pasteboardLink = WebLink.parse(entry.text)
         mascot.handle(.textCopied, now: .now)   // the mascot sees it happen in the open panel
     }
 

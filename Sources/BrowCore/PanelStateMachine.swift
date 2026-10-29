@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 
 public enum PanelTab: String, Codable, Sendable, CaseIterable {
-    case shelf, clipboard, screenshots, notes
+    case shelf, clipboard, screenshots, notes, links
 }
 
 public enum PanelState: Equatable, Sendable {
@@ -65,6 +65,11 @@ public struct PanelStateMachine: Equatable, Sendable {
     /// A text drag over the notch opens the panel on the clipboard history.
     public mutating func textDragMoved(to point: CGPoint, now: Date) {
         dragMoved(to: point, now: now, opening: .clipboard)
+    }
+
+    /// A web link drag over the notch opens the panel on the saved links.
+    public mutating func linkDragMoved(to point: CGPoint, now: Date) {
+        dragMoved(to: point, now: now, opening: .links)
     }
 
     /// Dragging something to the notch is always deliberate, so it opens at once.

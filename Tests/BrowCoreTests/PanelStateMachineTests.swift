@@ -164,4 +164,10 @@ final class PanelStateMachineTests: XCTestCase {
         m.tick(now: t0 + 1)
         XCTAssertEqual(m.state, .collapsed)
     }
+
+    func testLinkDragOpensLinksTabAtOnce() {
+        m.linkDragMoved(to: CGPoint(x: 756, y: 970), now: t0)
+        XCTAssertEqual(m.state, .expanded)
+        XCTAssertEqual(m.selectedTab, .links)
+    }
 }
