@@ -1,5 +1,6 @@
 import AppKit
 import BrowCore
+import CryptoKit
 import Observation
 import os
 
@@ -35,6 +36,9 @@ final class AppModel {
     }
     @ObservationIgnored private let covers = CoverFetcher()
     @ObservationIgnored private var lastMediaStatus: MediaStatus?
+    @ObservationIgnored private var placeholderArtwork: PlaceholderArtwork
+    @ObservationIgnored private let placeholderStore: JSONFileStore<PlaceholderArtwork>
+    @ObservationIgnored private var settleTask: Task<Void, Never>?
     var mascot = MascotState(now: .now)
     /// Global cursor position, updated only while the panel is open (the mascot looks at it).
     var cursor: CGPoint = .zero
@@ -73,6 +77,8 @@ final class AppModel {
         clipboardStore = JSONFileStore(directory: directory, name: "clipboard")
         shelfStore = JSONFileStore(directory: directory, name: "shelf")
         screenshotsStore = JSONFileStore(directory: directory, name: "screenshots")
+        placeholderStore = JSONFileStore(directory: directory, name: "artwork-placeholders")
+        placeholderArtwork = placeholderStore.load() ?? PlaceholderArtwork()
         screenshotsDirectory = directory.appendingPathComponent("Screenshots", isDirectory: true)
         notes = NotesStore(store: JSONFileStore(directory: directory, name: "notes"))
         clipboard = clipboardStore.load() ?? ClipboardHistory()
@@ -143,16 +149,28 @@ final class AppModel {
         launchAtLogin = LoginItem.isEnabled
     }
 
-    /// Browsers pass title and artist but not the site's cover (Chromium sends its
-    /// own icon), so their placeholder is dropped and the cover looked up instead.
+    /// Browser music keeps real artwork (VK video frames) but drops the browser's
+    /// own icon, learned by `PlaceholderArtwork`; without a usable cover, the cover
+    /// is looked up online.
     func mediaStatusChanged(_ status: MediaStatus) {
         lastMediaStatus = status
         guard case .playing(var nowPlaying) = status else {
             media = status
             return
         }
-        if CoverLookup.sendsPlaceholderArtwork(nowPlaying.bundleId) { nowPlaying.artwork = nil }
-        if coverLookupEnabled, CoverLookup.isBrowser(nowPlaying.bundleId) {
+        guard CoverLookup.isBrowser(nowPlaying.bundleId) else {
+            media = status
+            return
+        }
+        if let artwork = nowPlaying.artwork {
+            let fingerprint = Self.fingerprint(artwork)
+            if placeholderArtwork.isPlaceholder(fingerprint) {
+                nowPlaying.artwork = nil
+            } else {
+                learnWhenSettled(artwork: fingerprint, title: nowPlaying.title)
+            }
+        }
+        if nowPlaying.artwork == nil, coverLookupEnabled {
             if let cover = covers.cover(artist: nowPlaying.artist, title: nowPlaying.title) {
                 nowPlaying.artwork = cover
             } else {
@@ -163,6 +181,23 @@ final class AppModel {
             }
         }
         media = .playing(nowPlaying)
+    }
+
+    /// On a track change Chrome briefly pairs the new title with the previous
+    /// artwork, so only pairs that last a second count as evidence.
+    private func learnWhenSettled(artwork: String, title: String) {
+        settleTask?.cancel()
+        settleTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, let self else { return }
+            guard self.placeholderArtwork.observe(artwork: artwork, title: title) else { return }
+            self.persist(self.placeholderArtwork, to: self.placeholderStore)
+            if let latest = self.lastMediaStatus { self.mediaStatusChanged(latest) }   // drop it now
+        }
+    }
+
+    private static func fingerprint(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     func sendMedia(_ command: MediaCommand) {

@@ -10,12 +10,6 @@ final class CoverLookupTests: XCTestCase {
         XCTAssertFalse(CoverLookup.isBrowser(nil))
     }
 
-    func testChromiumBrowsersSendTheirIconInsteadOfCover() {
-        XCTAssertTrue(CoverLookup.sendsPlaceholderArtwork("com.google.Chrome"))
-        XCTAssertTrue(CoverLookup.sendsPlaceholderArtwork("ru.yandex.desktop.yandex-browser"))
-        XCTAssertFalse(CoverLookup.sendsPlaceholderArtwork("com.apple.Safari"))
-        XCTAssertFalse(CoverLookup.sendsPlaceholderArtwork("com.apple.Music"))
-    }
 
     func testSearchURL() throws {
         let url = try XCTUnwrap(CoverLookup.searchURL(artist: "Егор Крид", title: "Таро", country: "RU"))

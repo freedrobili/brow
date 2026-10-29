@@ -1,15 +1,11 @@
 import Foundation
 
-/// Album covers for music playing in a browser. Browsers pass the title and
-/// artist to macOS but not the site's cover (Chromium sends its own app icon
-/// instead), so the cover is looked up in the public iTunes Search API.
+/// Album covers for music playing in a browser. Some sites' covers do not reach
+/// macOS (Chrome sends its own icon for Spotify, see `PlaceholderArtwork`), so
+/// the cover is looked up in the public iTunes Search API.
 public enum CoverLookup {
-    private static let browsers = Set([
+    private static let browsers: Set<String> = [
         "com.apple.Safari", "com.apple.SafariTechnologyPreview", "org.mozilla.firefox",
-    ]).union(chromiumBrowsers)
-
-    /// These put their own icon where the cover should be.
-    private static let chromiumBrowsers: Set<String> = [
         "com.google.Chrome", "com.google.Chrome.canary", "com.google.Chrome.beta",
         "company.thebrowser.Browser", "com.microsoft.edgemac", "com.brave.Browser",
         "ru.yandex.desktop.yandex-browser", "com.operasoftware.Opera", "com.vivaldi.Vivaldi",
@@ -18,11 +14,6 @@ public enum CoverLookup {
 
     public static func isBrowser(_ bundleId: String?) -> Bool {
         bundleId.map(browsers.contains) ?? false
-    }
-
-    /// True when the "artwork" from this app is its icon rather than a cover.
-    public static func sendsPlaceholderArtwork(_ bundleId: String?) -> Bool {
-        bundleId.map(chromiumBrowsers.contains) ?? false
     }
 
     /// iTunes Search API query for a song; nil without a title.
