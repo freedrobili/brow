@@ -23,7 +23,8 @@ enum ScreenshotRenderer {
         try render(model, to: outputDirectory.appendingPathComponent("collapsed.png"))
         model.mouseMoved(to: CGPoint(x: geometry.notchRect.midX, y: geometry.notchRect.midY))
         for (tab, name) in [(PanelTab.shelf, "shelf"), (.clipboard, "clipboard"),
-                            (.screenshots, "screenshots"), (.notes, "notes")] {
+                            // Notes last: leaving the notes tab re-checks the real cursor, which closes the panel here.
+            (.screenshots, "screenshots"), (.links, "links"), (.notes, "notes")] {
             model.select(tab)
             try render(model, to: outputDirectory.appendingPathComponent("\(name).png"))
         }
@@ -58,6 +59,15 @@ enum ScreenshotRenderer {
                               ((0.98, 0.85, 0.4), (0.95, 0.5, 0.3))] {
             if let png = demoScreenshot(top: top, bottom: bottom) { model.screenshotTaken(png) }
         }
+
+        var links = LinkStore()
+        for (address, title) in [("https://example.com/podcast", "Подкаст про дизайн"),
+                                 ("https://example.com/recipes/42", "Рецепт сырников"),
+                                 ("https://books.example.com/book/1", "Мастер и Маргарита — читать онлайн")] {
+            let id = links.add(URL(string: address)!)
+            links.setPageInfo(id: id, title: title, icon: nil)
+        }
+        model.links = links
 
         model.noteText = "Купить: молоко, кофе\nПозвонить в сервис до пятницы\nИдея: тёмная тема для полки"
     }

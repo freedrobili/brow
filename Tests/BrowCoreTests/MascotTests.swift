@@ -30,6 +30,8 @@ final class MascotStateTests: XCTestCase {
         XCTAssertEqual(m.expression(at: t0 + 2.1), .wink)
         m.handle(.screenshotTaken, now: t0 + 4)
         XCTAssertEqual(m.expression(at: t0 + 4.1), .squint)
+        m.handle(.linkSaved, now: t0 + 6)
+        XCTAssertEqual(m.expression(at: t0 + 6.1), .happy)
     }
 
     func testFallsAsleepWhenCursorRests() {

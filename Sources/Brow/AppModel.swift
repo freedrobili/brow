@@ -17,6 +17,7 @@ final class AppModel {
                 if expanded {
                     refreshShelf()
                     launchAtLogin = LoginItem.isEnabled   // may have changed in System Settings
+                    refreshLinkInfo()
                     mascot.panelOpened(now: .now)
                 } else {
                     mascot.panelClosed(now: .now)
@@ -50,6 +51,9 @@ final class AppModel {
     var clipboard: ClipboardHistory
     var shelf: ShelfStore
     var screenshots: ScreenshotHistory
+    var links: LinkStore
+    /// The web link currently on the pasteboard, for the «+ из буфера» button.
+    var pasteboardLink: URL?
     var noteText: String {
         didSet { notes.update(noteText) }
     }
@@ -58,6 +62,10 @@ final class AppModel {
     @ObservationIgnored private let clipboardStore: JSONFileStore<ClipboardHistory>
     @ObservationIgnored private let shelfStore: JSONFileStore<ShelfStore>
     @ObservationIgnored private let screenshotsStore: JSONFileStore<ScreenshotHistory>
+    @ObservationIgnored private let linksStore: JSONFileStore<LinkStore>
+    @ObservationIgnored private let linkInfo = LinkInfoFetcher()
+    /// Makes the panel take keyboard input (set by the window controller).
+    @ObservationIgnored var focusPanel: (() -> Void)?
     /// PNG files of `screenshots`, one per entry.
     @ObservationIgnored let screenshotsDirectory: URL
     @ObservationIgnored private var thumbnails: [UUID: NSImage] = [:]
@@ -77,6 +85,7 @@ final class AppModel {
         clipboardStore = JSONFileStore(directory: directory, name: "clipboard")
         shelfStore = JSONFileStore(directory: directory, name: "shelf")
         screenshotsStore = JSONFileStore(directory: directory, name: "screenshots")
+        linksStore = JSONFileStore(directory: directory, name: "links")
         placeholderStore = JSONFileStore(directory: directory, name: "artwork-placeholders")
         placeholderArtwork = placeholderStore.load() ?? PlaceholderArtwork()
         screenshotsDirectory = directory.appendingPathComponent("Screenshots", isDirectory: true)
@@ -84,6 +93,7 @@ final class AppModel {
         clipboard = clipboardStore.load() ?? ClipboardHistory()
         shelf = shelfStore.load() ?? ShelfStore()
         screenshots = screenshotsStore.load() ?? ScreenshotHistory()
+        links = linksStore.load() ?? LinkStore()
         noteText = notes.text
         refreshShelf()
         tidyScreenshots()
@@ -110,6 +120,10 @@ final class AppModel {
 
     func fileDragMoved(to point: CGPoint) {
         updatePanel { $0.fileDragMoved(to: point, now: .now) }
+    }
+
+    func linkDragMoved(to point: CGPoint) {
+        updatePanel { $0.linkDragMoved(to: point, now: .now) }
     }
 
     func textDragMoved(to point: CGPoint) {
@@ -204,7 +218,58 @@ final class AppModel {
         mediaController?.send(command)
     }
 
+    // MARK: Links
+
+    func addLink(_ url: URL) {
+        let id = links.add(url)
+        persist(links, to: linksStore)
+        select(.links)
+        mascot.handle(.linkSaved, now: .now)
+        if let link = links.links.first(where: { $0.id == id }), link.pageTitle == nil { fetchInfo(for: link) }
+    }
+
+    func addLinkFromPasteboard() {
+        if let pasteboardLink { addLink(pasteboardLink) }
+    }
+
+    func openLink(_ link: SavedLink) {
+        NSWorkspace.shared.open(link.url)
+    }
+
+    func copyLink(_ link: SavedLink) {
+        clipboardWatcher?.copy(link.url.absoluteString)
+    }
+
+    func renameLink(_ id: UUID, to name: String) {
+        links.rename(id: id, to: name)
+        persist(links, to: linksStore)
+    }
+
+    func removeLink(_ id: UUID) {
+        links.remove(id: id)
+        persist(links, to: linksStore)
+    }
+
+    func clearLinks() {
+        links.removeAll()
+        persist(links, to: linksStore)
+    }
+
+    /// Retries pages whose title could not be fetched yet (e.g. offline).
+    private func refreshLinkInfo() {
+        links.linksNeedingPageInfo.forEach(fetchInfo)
+    }
+
+    private func fetchInfo(for link: SavedLink) {
+        linkInfo.fetch(link) { [weak self] title, icon in
+            guard let self else { return }
+            self.links.setPageInfo(id: link.id, title: title ?? link.address, icon: icon)
+            self.persist(self.links, to: self.linksStore)
+        }
+    }
+
     func clipboardChanged(_ text: String, types: Set<String>) {
+        if types.isDisjoint(with: ClipboardHistory.ignoredTypes) { pasteboardLink = WebLink.parse(text) }
         if clipboard.add(text, types: types) { persist(clipboard, to: clipboardStore) }
     }
 
@@ -217,6 +282,7 @@ final class AppModel {
     /// Copies an entry back without reordering the list under the cursor.
     func copyFromHistory(_ entry: ClipboardEntry) {
         clipboardWatcher?.copy(entry.text)
+        pasteboardLink = WebLink.parse(entry.text)
         mascot.handle(.textCopied, now: .now)   // the mascot sees it happen in the open panel
     }
 

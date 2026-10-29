@@ -37,12 +37,18 @@ struct NotchRootView: View {
                     .strokeBorder(.white.opacity(0.6), lineWidth: 2)
             }
         }
-        .onDrop(of: [.fileURL, .plainText], isTargeted: $isDropTargeted) { providers in
+        .onDrop(of: [.fileURL, .url, .plainText], isTargeted: $isDropTargeted) { providers in
             for provider in providers {
                 if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                     _ = provider.loadObject(ofClass: URL.self) { url, _ in
                         guard let url else { return }
                         DispatchQueue.main.async { MainActor.assumeIsolated { model.addToShelf([url]) } }
+                    }
+                } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+                    // A link from a browser's address bar or page: save it if it is a web address.
+                    _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                        guard let url, let link = WebLink.parse(url.absoluteString) else { return }
+                        DispatchQueue.main.async { MainActor.assumeIsolated { model.addLink(link) } }
                     }
                 } else {
                     _ = provider.loadObject(ofClass: String.self) { text, _ in
@@ -108,6 +114,7 @@ struct NotchRootView: View {
         case .clipboard: ClipboardView(model: model)
         case .screenshots: ScreenshotsView(model: model)
         case .notes: NotesView(model: model)
+        case .links: LinksView(model: model)
         }
     }
 }
@@ -119,6 +126,7 @@ extension PanelTab {
         case .clipboard: "doc.on.clipboard"
         case .screenshots: "camera.viewfinder"
         case .notes: "note.text"
+        case .links: "link"
         }
     }
 }

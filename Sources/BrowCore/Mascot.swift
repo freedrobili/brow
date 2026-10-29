@@ -3,7 +3,7 @@ import Foundation
 
 /// Things in Brow the mascot reacts to.
 public enum MascotEvent: Sendable {
-    case fileShelved, textCopied, screenshotTaken
+    case fileShelved, textCopied, screenshotTaken, linkSaved
 }
 
 public enum MascotExpression: Equatable, Sendable {
@@ -59,7 +59,7 @@ public struct MascotState: Equatable, Sendable {
 
     public mutating func handle(_ event: MascotEvent, now: Date) {
         switch event {
-        case .fileShelved: react(.happy, for: Self.reactionDuration, now: now)
+        case .fileShelved, .linkSaved: react(.happy, for: Self.reactionDuration, now: now)
         case .textCopied: react(.wink, for: Self.reactionDuration, now: now)
         case .screenshotTaken: react(.squint, for: Self.reactionDuration, now: now)
         }
