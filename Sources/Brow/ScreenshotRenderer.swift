@@ -69,6 +69,11 @@ enum ScreenshotRenderer {
         }
         model.links = links
 
+        var checklist = Checklist()
+        for task in ["Купить подарок маме", "Отправить отчёт", "Записаться к стоматологу"] { checklist.add(task) }
+        if let done = checklist.items.dropFirst().first { checklist.toggle(id: done.id) }
+        model.checklist = checklist
+
         model.noteText = "Купить: молоко, кофе\nПозвонить в сервис до пятницы\nИдея: тёмная тема для полки"
     }
 
