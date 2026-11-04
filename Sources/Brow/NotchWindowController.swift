@@ -36,26 +36,33 @@ final class NotchWindowController {
         }
         // Keys while the panel has the keyboard: Esc closes, ⌘1…⌘5 switch tabs.
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            MainActor.assumeIsolated { self?.handleKey(event) ?? event }
+            let keyCode = event.keyCode
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            let characters = event.charactersIgnoringModifiers
+            let inPanel = event.window === self?.panel
+            let handled = MainActor.assumeIsolated {
+                inPanel && (self?.handleKey(keyCode: keyCode, flags: flags, characters: characters) ?? false)
+            }
+            return handled ? nil : event
         }
         reposition()
     }
 
-    private func handleKey(_ event: NSEvent) -> NSEvent? {
-        guard event.window === panel, model.isExpanded else { return event }
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        if event.keyCode == 53, flags.isEmpty {
+    /// Returns true when the key was used here and must not reach the text fields.
+    private func handleKey(keyCode: UInt16, flags: NSEvent.ModifierFlags, characters: String?) -> Bool {
+        guard model.isExpanded else { return false }
+        if keyCode == 53, flags.isEmpty {
             // While typing a note, task or new name Esc belongs to the text field.
-            if model.panel?.isEditingNote == true { return event }
+            if model.panel?.isEditingNote == true { return false }
             model.closeFromKeyboard()
-            return nil
+            return true
         }
-        if flags == .command, let digit = event.charactersIgnoringModifiers.flatMap(Int.init),
+        if flags == .command, let digit = characters.flatMap(Int.init),
            (1...PanelTab.allCases.count).contains(digit) {
             model.select(PanelTab.allCases[digit - 1])
-            return nil
+            return true
         }
-        return event
+        return false
     }
 
     private func panelExpandedChanged(_ expanded: Bool) {
