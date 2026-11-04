@@ -52,6 +52,7 @@ final class AppModel {
     var shelf: ShelfStore
     var screenshots: ScreenshotHistory
     var links: LinkStore
+    var checklist: Checklist
     /// The web link currently on the pasteboard, for the «+ из буфера» button.
     var pasteboardLink: URL?
     var noteText: String {
@@ -63,6 +64,7 @@ final class AppModel {
     @ObservationIgnored private let shelfStore: JSONFileStore<ShelfStore>
     @ObservationIgnored private let screenshotsStore: JSONFileStore<ScreenshotHistory>
     @ObservationIgnored private let linksStore: JSONFileStore<LinkStore>
+    @ObservationIgnored private let checklistStore: JSONFileStore<Checklist>
     @ObservationIgnored private let linkInfo = LinkInfoFetcher()
     /// Makes the panel take keyboard input (set by the window controller).
     @ObservationIgnored var focusPanel: (() -> Void)?
@@ -86,6 +88,7 @@ final class AppModel {
         shelfStore = JSONFileStore(directory: directory, name: "shelf")
         screenshotsStore = JSONFileStore(directory: directory, name: "screenshots")
         linksStore = JSONFileStore(directory: directory, name: "links")
+        checklistStore = JSONFileStore(directory: directory, name: "checklist")
         // v2: the old rule took every album's cover for a placeholder once two of its
         // tracks played, so what it learned is dropped and learned again.
         try? FileManager.default.removeItem(at: directory.appendingPathComponent("artwork-placeholders.json"))
@@ -97,6 +100,7 @@ final class AppModel {
         shelf = shelfStore.load() ?? ShelfStore()
         screenshots = screenshotsStore.load() ?? ScreenshotHistory()
         links = linksStore.load() ?? LinkStore()
+        checklist = checklistStore.load() ?? Checklist()
         noteText = notes.text
         refreshShelf()
         tidyScreenshots()
@@ -226,6 +230,34 @@ final class AppModel {
 
     func sendMedia(_ command: MediaCommand) {
         mediaController?.send(command)
+    }
+
+    // MARK: Checklist
+
+    func addTask(_ text: String) {
+        guard checklist.add(text) != nil else { return }
+        persist(checklist, to: checklistStore)
+    }
+
+    /// Бровик cheers when the last open task gets checked off.
+    func toggleTask(_ id: UUID) {
+        if checklist.toggle(id: id) { mascot.handle(.checklistCompleted, now: .now) }
+        persist(checklist, to: checklistStore)
+    }
+
+    func renameTask(_ id: UUID, to text: String) {
+        checklist.rename(id: id, to: text)
+        persist(checklist, to: checklistStore)
+    }
+
+    func removeTask(_ id: UUID) {
+        checklist.remove(id: id)
+        persist(checklist, to: checklistStore)
+    }
+
+    func removeDoneTasks() {
+        checklist.removeDone()
+        persist(checklist, to: checklistStore)
     }
 
     // MARK: Links
