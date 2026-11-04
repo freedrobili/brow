@@ -8,6 +8,7 @@ import SwiftUI
 final class NotchWindowController {
     private let panel = NotchPanel()
     private let model: AppModel
+    private var keyMonitor: Any?
 
     init(model: AppModel) {
         self.model = model
@@ -28,9 +29,33 @@ final class NotchWindowController {
         NotificationCenter.default.addObserver(
             forName: NSWindow.didResignKeyNotification, object: panel, queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { _ = self?.panel.makeFirstResponder(nil) }
+            MainActor.assumeIsolated {
+                _ = self?.panel.makeFirstResponder(nil)
+                self?.model.panelLostKeyFocus()
+            }
+        }
+        // Keys while the panel has the keyboard: Esc closes, ⌘1…⌘5 switch tabs.
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            MainActor.assumeIsolated { self?.handleKey(event) ?? event }
         }
         reposition()
+    }
+
+    private func handleKey(_ event: NSEvent) -> NSEvent? {
+        guard event.window === panel, model.isExpanded else { return event }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if event.keyCode == 53, flags.isEmpty {
+            // While typing a note, task or new name Esc belongs to the text field.
+            if model.panel?.isEditingNote == true { return event }
+            model.closeFromKeyboard()
+            return nil
+        }
+        if flags == .command, let digit = event.charactersIgnoringModifiers.flatMap(Int.init),
+           (1...PanelTab.allCases.count).contains(digit) {
+            model.select(PanelTab.allCases[digit - 1])
+            return nil
+        }
+        return event
     }
 
     private func panelExpandedChanged(_ expanded: Bool) {
@@ -56,7 +81,7 @@ final class NotchWindowController {
             return
         }
         if model.panel == nil {
-            model.panel = PanelStateMachine(geometry: geometry)
+            model.panel = model.makePanel(geometry: geometry)
         } else {
             model.panel?.geometry = geometry
         }
