@@ -148,6 +148,45 @@ final class AppModel {
 
     func select(_ tab: PanelTab) {
         panel?.select(tab)
+        UserDefaults.standard.set(tab.rawValue, forKey: "lastTab")
+    }
+
+    /// A new panel opens on the tab used last, also after a restart.
+    func makePanel(geometry: NotchGeometry) -> PanelStateMachine {
+        var panel = PanelStateMachine(geometry: geometry)
+        if let saved = UserDefaults.standard.string(forKey: "lastTab").flatMap(PanelTab.init(rawValue:)) {
+            panel.select(saved)
+        }
+        return panel
+    }
+
+    // MARK: Keyboard
+
+    /// The global shortcut; persisted, ⌥⌘B by default.
+    var hotKey = HotKeyChoice(stored: UserDefaults.standard.string(forKey: "hotKey"))
+    /// True when another app holds the chosen shortcut.
+    var hotKeyBusy = false
+    @ObservationIgnored var hotKeyCenter: HotKeyCenter?
+
+    func setHotKey(_ choice: HotKeyChoice) {
+        hotKey = choice
+        UserDefaults.standard.set(choice.rawValue, forKey: "hotKey")
+        hotKeyBusy = !(hotKeyCenter?.register(choice) ?? true)
+    }
+
+    /// ⌥⌘B: open on the last tab and take the keyboard, or close.
+    func toggleFromKeyboard() {
+        updatePanel { $0.toggleFromKeyboard() }
+        if isExpanded { focusPanel?() }
+    }
+
+    /// Esc, or a click in another app while the panel was opened from the keyboard.
+    func closeFromKeyboard() {
+        updatePanel { $0.closeFromKeyboard() }
+    }
+
+    func panelLostKeyFocus() {
+        if panel?.isPinned == true { closeFromKeyboard() }
     }
 
     /// Keeps the panel open while the note has focus; on losing it, re-checks the cursor.

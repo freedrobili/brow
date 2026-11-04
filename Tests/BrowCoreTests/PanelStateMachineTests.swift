@@ -170,4 +170,51 @@ final class PanelStateMachineTests: XCTestCase {
         XCTAssertEqual(m.state, .expanded)
         XCTAssertEqual(m.selectedTab, .links)
     }
+
+    // MARK: Keyboard (⌥⌘B)
+
+    func testKeyboardOpensAtOnceWhereverTheCursorIs() {
+        m.mouseMoved(to: CGPoint(x: 100, y: 100), now: t0)
+        m.toggleFromKeyboard()
+        XCTAssertEqual(m.state, .expanded)
+        XCTAssertTrue(m.isPinned)
+    }
+
+    func testPinnedPanelIgnoresTheMouseOutside() {
+        m.toggleFromKeyboard()
+        m.mouseMoved(to: CGPoint(x: 100, y: 100), now: t0)
+        m.tick(now: t0 + 5)
+        XCTAssertEqual(m.state, .expanded)
+    }
+
+    func testAfterTheCursorVisitsThePanelLeavingClosesItAsUsual() {
+        m.toggleFromKeyboard()
+        m.mouseMoved(to: CGPoint(x: 756, y: 900), now: t0)     // into the panel
+        m.mouseMoved(to: CGPoint(x: 100, y: 100), now: t0 + 1) // and out
+        XCTAssertFalse(m.isPinned)
+        m.tick(now: t0 + 1 + PanelStateMachine.collapseDelay)
+        XCTAssertEqual(m.state, .collapsed)
+    }
+
+    func testKeyboardTogglesClosed() {
+        m.toggleFromKeyboard()
+        m.toggleFromKeyboard()
+        XCTAssertEqual(m.state, .collapsed)
+        XCTAssertFalse(m.isPinned)
+    }
+
+    func testKeyboardCloseAlsoClosesAMouseOpenedPanelAndEndsEditing() {
+        openPanel()
+        m.select(.notes)
+        m.isEditingNote = true
+        m.closeFromKeyboard()
+        XCTAssertEqual(m.state, .collapsed)
+        XCTAssertFalse(m.isEditingNote)
+    }
+
+    func testKeyboardKeepsTheLastTab() {
+        m.select(.links)
+        m.toggleFromKeyboard()
+        XCTAssertEqual(m.selectedTab, .links)
+    }
 }

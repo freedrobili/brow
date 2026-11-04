@@ -25,6 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mouseTracker = tracker
         startMedia()
         LoginItem.autoEnableIfNeeded()
+        let hotKeys = HotKeyCenter { [model] in model.toggleFromKeyboard() }
+        model.hotKeyCenter = hotKeys
+        model.hotKeyBusy = !hotKeys.register(model.hotKey)
         if UpdatePolicy.shouldCheckForUpdates(bundlePath: Bundle.main.bundlePath) {
             let updater = Updater()
             model.updater = updater

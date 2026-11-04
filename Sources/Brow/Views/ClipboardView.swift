@@ -6,6 +6,7 @@ struct ClipboardView: View {
     let model: AppModel
     @State private var query = ""
     @State private var copiedId: UUID?
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         let results = model.clipboard.search(query)
@@ -17,6 +18,9 @@ struct ClipboardView: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+                    .focused($searchFocused)
+                    // Opened with the shortcut: start typing to search right away.
+                    .onAppear { if model.panel?.isPinned == true { searchFocused = true } }
                 if !model.clipboard.entries.isEmpty {
                     PanelTextButton("Очистить всё") { model.clearHistory() }
                 }

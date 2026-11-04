@@ -23,11 +23,18 @@ public struct PanelStateMachine: Equatable, Sendable {
     public static let hoverDelay: TimeInterval = 0.2
 
     public var geometry: NotchGeometry {
-        didSet { state = .collapsed }
+        didSet {
+            state = .collapsed
+            isPinned = false
+        }
     }
     public private(set) var state: PanelState = .collapsed
     public private(set) var selectedTab: PanelTab = .shelf
     public var isEditingNote = false
+    /// Opened from the keyboard: stays open while the cursor is elsewhere, until
+    /// the cursor visits the panel (then it behaves as usual) or it is closed.
+    public private(set) var isPinned = false
+    private var pointerVisitedPinnedPanel = false
 
     public var isExpanded: Bool {
         switch state {
@@ -41,6 +48,14 @@ public struct PanelStateMachine: Equatable, Sendable {
     }
 
     public mutating func mouseMoved(to point: CGPoint, now: Date) {
+        if isPinned {
+            if geometry.panelRect.containsIncludingEdges(point) {
+                pointerVisitedPinnedPanel = true
+                return
+            }
+            guard pointerVisitedPinnedPanel else { return }
+            isPinned = false   // the cursor came and went: back to hover behaviour
+        }
         switch state {
         case .collapsed:
             if geometry.hoverRect.containsIncludingEdges(point) {
@@ -55,6 +70,24 @@ public struct PanelStateMachine: Equatable, Sendable {
         case .collapsing:
             if geometry.panelRect.containsIncludingEdges(point) { state = .expanded }
         }
+    }
+
+    /// ⌥⌘B: opens at once on the last tab, wherever the cursor is, or closes.
+    public mutating func toggleFromKeyboard() {
+        if isExpanded {
+            closeFromKeyboard()
+        } else {
+            state = .expanded
+            isPinned = true
+            pointerVisitedPinnedPanel = false
+        }
+    }
+
+    /// Esc, ⌥⌘B again, or a click in another app.
+    public mutating func closeFromKeyboard() {
+        state = .collapsed
+        isPinned = false
+        isEditingNote = false
     }
 
     /// A file drag over the notch opens the panel on the shelf.

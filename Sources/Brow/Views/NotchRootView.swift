@@ -63,6 +63,17 @@ struct NotchRootView: View {
             Toggle("Запускать при входе в систему", isOn: Binding(
                 get: { model.launchAtLogin },
                 set: { model.setLaunchAtLogin($0) }))
+            Menu("Горячая клавиша") {
+                ForEach(HotKeyChoice.allCases, id: \.self) { choice in
+                    Button { model.setHotKey(choice) } label: {
+                        if choice == model.hotKey {
+                            Label(choice.title + (model.hotKeyBusy ? " — занято" : ""), systemImage: "checkmark")
+                        } else {
+                            Text(choice.title)
+                        }
+                    }
+                }
+            }
             Toggle("Искать обложки в интернете", isOn: Binding(
                 get: { model.coverLookupEnabled },
                 set: { model.coverLookupEnabled = $0 }))
