@@ -51,6 +51,11 @@ final class NotchWindowController {
     /// Returns true when the key was used here and must not reach the text fields.
     private func handleKey(keyCode: UInt16, flags: NSEvent.ModifierFlags, characters: String?) -> Bool {
         guard model.isExpanded else { return false }
+        // Brow has no Edit menu, so ⌘C/⌘V/⌘X/⌘A/⌘Z would never reach the text fields.
+        if let edit = EditShortcut(keyCode: keyCode, command: flags.contains(.command), shift: flags.contains(.shift),
+                                   option: flags.contains(.option), control: flags.contains(.control)) {
+            return NSApp.sendAction(Selector(edit.selectorName), to: nil, from: nil)
+        }
         if keyCode == 53, flags.isEmpty {
             // While typing a note, task or new name Esc belongs to the text field.
             if model.panel?.isEditingNote == true { return false }

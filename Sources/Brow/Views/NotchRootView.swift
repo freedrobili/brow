@@ -37,7 +37,7 @@ struct NotchRootView: View {
                     .strokeBorder(.white.opacity(0.6), lineWidth: 2)
             }
         }
-        .onDrop(of: [.fileURL, .url, .plainText], isTargeted: $isDropTargeted) { providers in
+        .onDrop(of: DropRouting.acceptedTypes, isTargeted: $isDropTargeted) { providers in
             for provider in providers {
                 if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                     _ = provider.loadObject(ofClass: URL.self) { url, _ in
